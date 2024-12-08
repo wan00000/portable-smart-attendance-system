@@ -1,37 +1,51 @@
-import { Tabs } from 'expo-router';
-import React from 'react';
+// app/(tabs)/_layout.tsx
+import { BottomNavigation} from 'react-native-paper';
+import HomeScreen from './home';
+import ManagementScreen from './management';
+import ProfileScreen from './profile';
+import AttendanceScreen from './attendance';
+import React, { useState } from 'react';
 
-import { TabBarIcon } from '@/components/navigation/TabBarIcon';
-import { Colors } from '@/constants/Colors';
-import { useColorScheme } from '@/hooks/useColorScheme';
 
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
+const BottomTabs = () => {
+
+  const [index, setIndex] = useState(0);
+  const [routes] = useState([
+    { key: 'home', title: 'Home', focusedIcon: 'home', unfocusedIcon: 'home-outline' },
+    { key: 'scan', title: 'Attendance', focusedIcon: 'account-clock', unfocusedIcon: 'account-clock-outline' },
+    { key: 'manage', title: 'Manage', focusedIcon: 'account-group', unfocusedIcon: 'account-group-outline' },
+    { key: 'profile', title: 'Profile', focusedIcon: 'account', unfocusedIcon: 'account-outline' },
+    
+  ]);
+
+  const renderScene = BottomNavigation.SceneMap({
+    home: HomeScreen,
+    manage: ManagementScreen,
+    profile: ProfileScreen,
+    scan: AttendanceScreen,
+  });
 
   return (
-    <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        headerShown: false,
-      }}>
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Home',
-          tabBarIcon: ({ color, focused }) => (
-            <TabBarIcon name={focused ? 'home' : 'home-outline'} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="explore"
-        options={{
-          title: 'Explore',
-          tabBarIcon: ({ color, focused }) => (
-            <TabBarIcon name={focused ? 'code-slash' : 'code-slash-outline'} color={color} />
-          ),
-        }}
-      />
-    </Tabs>
+    
+    <BottomNavigation
+      navigationState={{ index, routes }}
+      onIndexChange={setIndex}
+      renderScene={renderScene}
+      // options={
+      //   {headerShown: false,}
+      // }
+    />
   );
-}
+};
+
+export default BottomTabs;
+
+
+
+
+
+
+
+
+
+
