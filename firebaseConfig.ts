@@ -2,19 +2,27 @@ import { initializeApp, getApps, getApp } from "firebase/app";
 import { initializeAuth, getReactNativePersistence } from "firebase/auth";
 import { getDatabase } from "firebase/database";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import {
+  FIREBASE_API_KEY,
+  FIREBASE_AUTH_DOMAIN,
+  FIREBASE_DATABASE_URL,
+  FIREBASE_PROJECT_ID,
+  FIREBASE_STORAGE_BUCKET,
+  FIREBASE_MESSAGING_SENDER_ID,
+  FIREBASE_APP_ID,
+} from '@env';
 
 // Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyDAuRd5KNdRgjMNX0C2TB_JzgxOxbPNUys",
-  authDomain: "idatang-2fb55.firebaseapp.com",
-  databaseURL: "https://idatang-2fb55-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "idatang-2fb55",
-  storageBucket: "idatang-2fb55.firebasestorage.app",
-  messagingSenderId: "465572830617",
-  appId: "1:465572830617:web:73690642412c3e109dc708",
+  apiKey: FIREBASE_API_KEY,
+  authDomain: FIREBASE_AUTH_DOMAIN,
+  databaseURL: FIREBASE_DATABASE_URL,
+  projectId: FIREBASE_PROJECT_ID,
+  storageBucket: FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: FIREBASE_MESSAGING_SENDER_ID,
+  appId: FIREBASE_APP_ID,
 };
 
-// Initialize Firebase app only if not already initialized
 let app;
 if (!getApps().length) {
   app = initializeApp(firebaseConfig);
@@ -22,13 +30,12 @@ if (!getApps().length) {
   app = getApp();
 }
 
-// Initialize Firebase Auth with React Native persistence
+console.log('Firebase API Key:', FIREBASE_API_KEY);
+
 const auth = initializeAuth(app, {
   persistence: getReactNativePersistence(AsyncStorage),
 });
 
-// Initialize Firebase Realtime Database
 const db = getDatabase(app);
 
-// Export initialized instances
 export { app, auth, db, getApp };
