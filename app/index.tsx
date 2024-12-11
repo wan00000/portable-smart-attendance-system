@@ -201,4 +201,3 @@ export default function Index() {
     return null;
 }
 
-const styles = StyleSheet.create({});
