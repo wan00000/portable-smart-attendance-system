@@ -1,9 +1,57 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ScrollView, View, Dimensions } from 'react-native';
 import { Href, router } from 'expo-router';
 import { LineChart } from 'react-native-chart-kit';
-import { Appbar, Button, Card, Menu, Text, useTheme, FAB, Portal, Dialog, Paragraph } from 'react-native-paper';
+import { Appbar, Button, Card, Menu, Text, useTheme, FAB, Portal, Dialog, Paragraph, ActivityIndicator, Chip, IconButton } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { get, getDatabase, ref } from 'firebase/database';
+
+// Define a type for a session
+interface Session {
+  day: string;
+  date: string;
+  time: string;
+}
+
+// Define a type for an event
+interface Event {
+  code: string;
+  name: string;
+  organizer: string;
+  quota: number;
+  sessions: Record<string, Session>;
+}
+
+interface Student {
+  id: string;
+  name: string;
+  matric: string;
+}
+
+// Define the structure for all events
+type Events = Record<string, Event>;
+
+const fetchEvents = async (): Promise<Events> => {
+  const db = getDatabase();
+  const eventsRef = ref(db, 'events');
+
+  try {
+    console.log('Fetching events from Firebase...');
+    const snapshot = await get(eventsRef);
+
+    if (!snapshot.exists()) {
+      console.log('No events found.');
+      return {};
+    }
+
+    console.log('Fetched events:', snapshot.val());
+    return snapshot.val() as Events;
+  } catch (error) {
+    console.error('Firebase error:', error);
+    throw error;
+  }
+};
+
 
 const AttendanceScreen = () => {
   const { colors } = useTheme();
@@ -11,9 +59,80 @@ const AttendanceScreen = () => {
   const [dialogVisible, setDialogVisible] = useState(false);
   const screenWidth = Dimensions.get('window').width;
 
+  const [events, setEvents] = useState<Record<string, Event>>({});
+  const [attendanceData, setAttendanceData] = useState<Record<string, any>>({});
+  const [loading, setLoading] = useState(true);
+
   const toggleMenu = () => setMenuVisible(!menuVisible);
   const showDialog = () => setDialogVisible(true);
   const hideDialog = () => setDialogVisible(false);
+
+
+  useEffect(() => {
+    const fetchEventsAndAttendance = async () => {
+      const db = getDatabase();
+
+      try {
+        console.log('Fetching events and attendance data...');
+        const [eventsSnapshot, attendanceSnapshot] = await Promise.all([
+          get(ref(db, 'events')),
+          get(ref(db, 'attendance')),
+        ]);
+
+        if (eventsSnapshot.exists()) {
+          setEvents(eventsSnapshot.val());
+        } else {
+          console.log('No events found.');
+        }
+
+        if (attendanceSnapshot.exists()) {
+          setAttendanceData(attendanceSnapshot.val());
+        } else {
+          console.log('No attendance data found.');
+        }
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchEventsAndAttendance();
+  }, []);
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={{ marginTop: 16 }}>Loading events...</Text>
+      </View>
+    );
+  }
+
+  const calculateAttendanceStats = (sessionId: string, eventId: string) => {
+    const sessionAttendance = attendanceData?.[eventId]?.[sessionId];
+    if (!sessionAttendance) {
+      return { percentage: 0, present: 0, absent: 0 };
+    }
+
+    const totalStudents = Object.keys(sessionAttendance).length;
+    let presentCount = 0;
+    let absentCount = 0;
+
+    for (const studentId in sessionAttendance) {
+      const record = sessionAttendance[studentId];
+      if (record.status === 'onTime' || record.status === 'late') {
+        presentCount++;
+      } else if (record.status === 'absent') {
+        absentCount++;
+      }
+    }
+
+    const percentage = totalStudents > 0 ? Math.round((presentCount / totalStudents) * 100) : 0;
+
+    return { percentage, present: presentCount, absent: absentCount };
+  };
+  
 
   const handleRoutePush = (route: string) => {
     setMenuVisible(false);
@@ -71,37 +190,95 @@ const AttendanceScreen = () => {
           </Card.Content>
         </Card>
 
-        <Card style={{ margin: 16, elevation: 4 }}>
-          <Card.Title 
-            title="Career Fair"
-            subtitle="E0002 - Monday(11/11/2024)"
-            left={(props) => <MaterialCommunityIcons name="book-open-variant" size={24} color={colors.primary} />}
-          />
-          <Card.Content>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginVertical: 16 }}>
-              {[
-                { label: 'Attendance', value: '85%', icon: 'chart-arc' },
-                { label: 'Present', value: '20', icon: 'account-check' },
-                { label: 'Absent', value: '03', icon: 'account-cancel' },
-              ].map((stat, index) => (
-                <View key={index} style={{ alignItems: 'center' }}>
-                  <MaterialCommunityIcons name={stat.icon} size={32} color={colors.primary} />
-                  <Text style={{ fontSize: 20, fontWeight: 'bold', marginTop: 8 }}>{stat.value}</Text>
-                  <Text style={{ fontSize: 14, color: colors.onSurfaceVariant }}>{stat.label}</Text>
-                </View>
-              ))}
-            </View>
-          </Card.Content>
-          <Card.Actions>
-            <Button 
-            onPress={() => router.push({
-              pathname: '/attendance/test',
-              params: { title: 'Career Fair' },
-            })}>
-              View Details
-            </Button>
-          </Card.Actions>
-        </Card>
+        {Object.entries(events).map(([eventId, event]) => (
+          <Card key={eventId} style={{ margin: 16, elevation: 4 }}>
+            <Card.Title
+              title={event.name}
+              subtitle={event.code}
+              left={(props) => (
+                <MaterialCommunityIcons
+                  name="calendar"
+                  size={24}
+                  color={colors.primary}
+                />
+              )}
+            />
+            <Card.Content>
+              {event.sessions
+                ? Object.entries(event.sessions).map(([sessionId, session]) => {
+                    const stats = calculateAttendanceStats(sessionId, eventId);
+
+                    return (
+                      <View key={sessionId} style={{ marginVertical: 8 }}>
+                        <View
+                          style={{
+                            flexDirection: 'row',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            paddingHorizontal: 8,
+                          }}
+                        >
+                          <View style={{ flex: 1 }}>
+                            <Text style={{ fontWeight: 'bold', fontSize: 14 }}>{`${session.day}, ${session.date}`}</Text>
+                            <Text style={{ fontSize: 12 }}>{session.time}</Text>
+                          </View>
+                          <IconButton
+                            icon="chevron-right"
+                            size={24}
+                            style={{ marginRight: -8 }}
+                            onPress={() => {
+                              router.push({
+                                pathname: '/attendance/test',
+                                params: {
+                                  eventId,
+                                  eventName: event.name,
+                                  sessionId,
+                                  sessionDay: session.day,
+                                  sessionDate: session.date,
+                                  sessionTime: session.time,
+                                },
+                              });
+                            }}
+                          />
+                        </View>
+
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 }}>
+                          <Chip
+                            icon="account-check"
+                            mode="outlined"
+                            style={{ marginHorizontal: 2 }}
+                            textStyle={{ fontSize: 11 }}
+                          >
+                            Percentage: {stats.percentage}%
+                          </Chip>
+                          <Chip
+                            icon="check"
+                            mode="outlined"
+                            style={{ marginHorizontal: 2 }}
+                            textStyle={{ fontSize: 11 }}
+                          >
+                            Present: {stats.present}
+                          </Chip>
+                          <Chip
+                            icon="close"
+                            mode="outlined"
+                            style={{ marginHorizontal: 2 }}
+                            textStyle={{ fontSize: 11 }}
+                          >
+                            Absent: {stats.absent}
+                          </Chip>
+                        </View>
+                      </View>
+                    );
+                  })
+                : (
+                  <Text>No sessions available for this event</Text>
+                )}
+            </Card.Content>
+          </Card>
+        ))}
+
+
 
         
       </ScrollView>
