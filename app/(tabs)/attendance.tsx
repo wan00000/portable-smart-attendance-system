@@ -5,6 +5,7 @@ import { LineChart } from 'react-native-chart-kit';
 import { Appbar, Button, Card, Menu, Text, useTheme, FAB, Portal, Dialog, Paragraph, ActivityIndicator, Chip, IconButton } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { get, getDatabase, ref } from 'firebase/database';
+import AttendanceGraph from '@/components/AttendanceGraph';
 
 // Define a type for a session
 interface Session {
@@ -157,38 +158,7 @@ const AttendanceScreen = () => {
 
       <ScrollView style={{ flex: 1 }}>
 
-      <Card style={{ margin: 16, elevation: 4 }}>
-          <Card.Title title="Weekly Attendance Trend" />
-          <Card.Content>
-            <LineChart
-              data={{
-                labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
-                datasets: [{ data: [85, 88, 82, 91, 86] }],
-              }}
-              width={screenWidth - 65}
-              height={220}
-              yAxisSuffix="%"
-              chartConfig={{
-                backgroundColor: colors.surface,
-                backgroundGradientFrom: colors.surface,
-                backgroundGradientTo: colors.surfaceVariant,
-                decimalPlaces: 0,
-                color: (opacity = 1) => colors.primary,
-                labelColor: (opacity = 1) => colors.onSurface,
-                style: {
-                  borderRadius: 16,
-                },
-                propsForDots: {
-                  r: "6",
-                  strokeWidth: "2",
-                  stroke: colors.primaryContainer,
-                },
-              }}
-              bezier
-              style={{ marginVertical: 8, borderRadius: 16 }}
-            />
-          </Card.Content>
-        </Card>
+      <AttendanceGraph />
 
         {Object.entries(events).map(([eventId, event]) => (
           <Card key={eventId} style={{ margin: 16, elevation: 4 }}>
