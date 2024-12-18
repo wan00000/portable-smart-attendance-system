@@ -377,3 +377,112 @@ export const handleCheckOut = onValueCreated(
     }
   }
 );
+
+interface AttendanceLog {
+  checkInTime?: string;
+  checkOutTime?: string;
+  status?: string;
+}
+
+export const aggregateEventAttendance = onSchedule(
+  {
+    schedule: "every day 09:30",
+    timeZone: "Asia/Kuala_Lumpur",
+    region: "asia-southeast1",
+  },
+  async () => {
+    try {
+      const db = getDatabase();
+      const studentsRef = db.ref("students");
+      const eventsRef = db.ref("events");
+      const attendanceRef = db.ref("attendance");
+
+      // Fetch all students
+      const studentsSnapshot = await studentsRef.once("value");
+      const students = studentsSnapshot.val();
+
+      if (!students) {
+        logger.info("No students found.");
+        return;
+      }
+
+      for (const studentId of Object.keys(students)) {
+        const student = students[studentId];
+        const enrolledEvents = student.enrolledEvents;
+
+        if (!enrolledEvents) continue;
+
+        for (const eventId of Object.keys(enrolledEvents)) {
+          // Fetch event details
+          const eventSnapshot = await eventsRef.child(eventId).once("value");
+          const event: Event = eventSnapshot.val();
+
+          if (!event || !event.sessions) continue;
+
+          for (const sessionId of Object.keys(event.sessions)) {
+            const session = event.sessions[sessionId];
+            const today = new Date();
+
+            const currentDay = today.toLocaleDateString(
+              "en-US", {weekday: "long"});
+            // Check if session exists and is today
+            if (session.day === currentDay && session.time) {
+              const [startTime, endTime] = session.time.split(" - ");
+
+              if (startTime && endTime) {
+                const sessionStartTime = new Date(
+                  `${today.toDateString()} ${startTime}`
+                );
+                const sessionEndTime = new Date(
+                  `${today.toDateString()} ${endTime}`
+                );
+
+                // Check attendance for the student in this session
+                const attendanceLogRef = attendanceRef
+                  .child(eventId)
+                  .child(sessionId)
+                  .child(studentId);
+
+                const attendanceLogSnapshot = await attendanceLogRef.once(
+                  "value"
+                );
+                const attendanceLog: AttendanceLog=attendanceLogSnapshot.val();
+
+                if (
+                  !attendanceLog ||
+                  !attendanceLog.checkInTime ||
+                  new Date(attendanceLog.checkInTime) < sessionStartTime ||
+                  new Date(attendanceLog.checkInTime) > sessionEndTime
+                ) {
+                  // Mark as absent
+                  await attendanceLogRef.set({
+                    checkInTime: null,
+                    checkOutTime: null,
+                    status: "absent",
+                  });
+                  logger.info(
+                    `Marked student ${studentId} as absent for event ${eventId},
+                    session ${sessionId}.`
+                  );
+                }
+              } else {
+                logger.warn(
+                  `Invalid timeformat for session ${sessionId} event ${eventId}`
+                );
+              }
+            } else {
+              logger.warn(
+                `Session ${sessionId} for event ${eventId},
+                has no valid time or is not today`
+              );
+            }
+          }
+        }
+      }
+
+      logger.info("Event attendance aggregation completed.");
+    } catch (error) {
+      logger.error("Error aggregating event attendance:", error);
+    }
+  }
+);
