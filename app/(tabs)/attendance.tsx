@@ -50,7 +50,7 @@ const parseISO8601 = (isoDate: string): { date: string; day: string; time: strin
 
   // Add +08:00 offset to UTC time
   const offsetMillis = 8 * 60 * 60 * 1000; // +08:00 in milliseconds
-  const localDate = new Date(dateObj.getTime() + offsetMillis);
+  const localDate = new Date(dateObj.getTime());
 
   const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -253,7 +253,11 @@ const AttendanceScreen = () => {
                           />
                         </View>
 
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 }}>
+                        <ScrollView 
+                          horizontal 
+                          showsHorizontalScrollIndicator={false} 
+                          contentContainerStyle={{ paddingHorizontal: 8 }}
+                        >
                           <Chip
                             icon="percent"
                             mode="flat"
@@ -278,7 +282,7 @@ const AttendanceScreen = () => {
                           >
                             Absent: {stats.statuses.absent}
                           </Chip>
-                        </View>
+                        </ScrollView>
                       </View>
                     );
                   })

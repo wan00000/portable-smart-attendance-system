@@ -292,6 +292,19 @@ export const handleCheckIn = onValueCreated(
   }
 );
 
+type AttendanceData = {
+  checkInTime: string;
+  actualStatus?: string;
+  status?: string;
+  durationMinutes?: number;
+  attendancePercentage?: number;
+};
+
+type SessionData = {
+  startTime: string;
+  endTime: string;
+};
+
 export const handleCheckOut = onValueCreated(
   {
     ref: "attendance/{eventId}/{sessionId}/{studentId}/checkOutTime",
@@ -317,7 +330,7 @@ export const handleCheckOut = onValueCreated(
 
       // Fetch the attendance data
       const attendanceSnapshot = await attendanceRef.get();
-      const attendanceData = attendanceSnapshot.val();
+      const attendanceData = attendanceSnapshot.val() as AttendanceData | null;
 
       if (!attendanceData || !attendanceData.checkInTime) {
         logger.warn(`No checkInTime found for student: ${studentId}`);
@@ -338,7 +351,7 @@ export const handleCheckOut = onValueCreated(
       // Fetch session duration
       const sessionRef = db.ref(`events/${eventId}/sessions/${sessionId}`);
       const sessionSnapshot = await sessionRef.get();
-      const sessionData = sessionSnapshot.val();
+      const sessionData = sessionSnapshot.val() as SessionData | null;
 
       if (!sessionData || !sessionData.startTime || !sessionData.endTime) {
         logger.warn(`No session time found for session: ${sessionId}`);
@@ -358,18 +371,23 @@ export const handleCheckOut = onValueCreated(
       // Calculate attendance percentage
       const attendancePercentage = (durationMinutes/sessionDurationMinutes)*100;
 
-      // Update status based on attendance percentage
+      // Update actualStatus and status based on attendance percentage
       const actualStatus = attendancePercentage < 70 ? "absent" : "present";
-
-      await attendanceRef.update({
+      const updates: Partial<AttendanceData> = {
         actualStatus,
         durationMinutes,
         attendancePercentage,
-      });
+      };
+
+      if (attendancePercentage < 70) {
+        updates.status = "absent";
+      }
+
+      await attendanceRef.update(updates);
 
       logger.info(
         `Updated attendance for student: ${studentId},
-        status: ${actualStatus}, duration: ${durationMinutes} mins,
+        actualStatus: ${actualStatus}, duration: ${durationMinutes} mins,
         percentage: ${attendancePercentage}%`
       );
     } catch (error) {
@@ -378,10 +396,12 @@ export const handleCheckOut = onValueCreated(
   }
 );
 
+
 interface AttendanceLog {
   checkInTime?: string;
   checkOutTime?: string;
   status?: string;
+  actualStatus?: string;
 }
 
 export const aggregateEventAttendance = onSchedule(
@@ -446,7 +466,7 @@ export const aggregateEventAttendance = onSchedule(
                 const attendanceLogSnapshot = await attendanceLogRef.once(
                   "value"
                 );
-                const attendanceLog: AttendanceLog=attendanceLogSnapshot.val();
+                const attendanceLog:AttendanceLog=attendanceLogSnapshot.val();
 
                 if (
                   !attendanceLog ||
@@ -459,6 +479,7 @@ export const aggregateEventAttendance = onSchedule(
                     checkInTime: null,
                     checkOutTime: null,
                     status: "absent",
+                    actualStatus: "absent",
                   });
                   logger.info(
                     `Marked student ${studentId} as absent for event ${eventId},
@@ -467,7 +488,8 @@ export const aggregateEventAttendance = onSchedule(
                 }
               } else {
                 logger.warn(
-                  `Invalid timeformat for session ${sessionId} event ${eventId}`
+                  `Invalid time format for session ${sessionId},
+                  event ${eventId}`
                 );
               }
             } else {
