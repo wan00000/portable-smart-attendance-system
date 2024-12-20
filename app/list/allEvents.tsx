@@ -7,7 +7,8 @@ import { db } from '../../firebaseConfig';
 
 interface Session {
   day: string;
-  time: string;
+  startTime: string;
+  endTime: string;
 }
 
 interface CourseProps {
@@ -18,9 +19,17 @@ interface CourseProps {
   sessions: Session[];
 }
 
+// Utility function to calculate the day from a date string
+const getDayFromDate = (dateString: string): string => {
+  const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const date = new Date(dateString);
+  return daysOfWeek[date.getUTCDay()]; // Get the day from the ISO8601 date
+};
+
+// CourseCard component
 const CourseCard: React.FC<CourseProps> = ({ id, title, code, sessions, organizer }) => {
   const { colors } = useTheme();
-
+  
   const handleMoreDetails = () => {
     router.push({
       pathname: '/eventMgmt/detail',
@@ -32,6 +41,7 @@ const CourseCard: React.FC<CourseProps> = ({ id, title, code, sessions, organize
         sessions: JSON.stringify(sessions), // Pass the sessions as a JSON string
       },
     });
+    console.log(JSON.stringify(sessions));
   };
 
   return (
@@ -48,7 +58,7 @@ const CourseCard: React.FC<CourseProps> = ({ id, title, code, sessions, organize
           {sessions.map((session, index) => (
             <View key={index} style={styles.sessionRow}>
               <Text>{session.day}</Text>
-              <Text>{session.time}</Text>
+              <Text>{session.startTime} - {session.endTime}</Text>
             </View>
           ))}
         </Card.Content>
@@ -60,6 +70,7 @@ const CourseCard: React.FC<CourseProps> = ({ id, title, code, sessions, organize
   );
 };
 
+// AllEvents component
 const AllEvents: React.FC = () => {
   const { colors } = useTheme();
   const [courses, setCourses] = useState<CourseProps[]>([]);
@@ -76,9 +87,9 @@ const AllEvents: React.FC = () => {
           code: event.code,
           organizer: event.organizer,
           sessions: Object.entries(event.sessions || {}).map(([sessionId, session]: [string, any]) => ({
-            sessionId, // Include sessionId
-            day: session.day,
-            time: session.time, // Use the "time" property directly from the database structure
+            day: getDayFromDate(session.startTime), // Extract day from startTime
+            startTime: `${new Date(session.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`, // Format startTime and endTime
+            endTime: `${new Date(session.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
           })),
         }));
         setCourses(loadedCourses);
@@ -99,6 +110,7 @@ const AllEvents: React.FC = () => {
   );
 };
 
+// Styles
 const styles = StyleSheet.create({
   container: {
     flex: 1,

@@ -9,7 +9,6 @@ import { getDatabase, ref, onValue, push, set } from 'firebase/database';
 type EventInfo = {
   name: string;
   code: string;
-  quota: string;
   organizer: string;
   organizerId: string;
   day: string;
@@ -30,13 +29,13 @@ type OnConfirm = {
 
 type Session = {
   day: string;
-  time: string;
+  startTime: string;
+  endTime: string;
 };
 
 const inputFields: InputField[] = [
   { label: "Event Name", value: "name", icon: "book-open-variant" },
   { label: "Code", value: "code", icon: "barcode" },
-  { label: "Quota", value: "quota", icon: "account-group" },
 ];
 
 const OrganizerSelector: React.FC<{
@@ -44,37 +43,29 @@ const OrganizerSelector: React.FC<{
   onSelect: (organizerId: string, organizerName: string) => void;
   availableOrganizers: { id: string; name: string }[];
 }> = ({ organizer, onSelect, availableOrganizers }) => {
-  const [menuVisible, setMenuVisible] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   return (
-    <Menu
-      visible={menuVisible}
-      onDismiss={() => setMenuVisible(false)}
-      anchor={
-        <Button
-          onPress={() => setMenuVisible(true)}
-          mode="outlined"
-          icon="menu-down"
-          contentStyle={{ flexDirection: 'row-reverse' }}
-          style={styles.input}
-        >
-          {organizer || "Select Organizer"}
-        </Button>
-      }
+    <List.Accordion
+      title={organizer || "Select Organizer"}
+      expanded={expanded}
+      onPress={() => setExpanded(!expanded)}
+      left={(props) => <List.Icon {...props} icon="account" />}
     >
       {availableOrganizers.map(({ id, name }) => (
-        <Menu.Item
+        <List.Item
           key={id}
+          title={name}
           onPress={() => {
             onSelect(id, name);
-            setMenuVisible(false);
+            setExpanded(false); // Close accordion after selection
           }}
-          title={name}
         />
       ))}
-    </Menu>
+    </List.Accordion>
   );
 };
+
 
 const ScheduleList: React.FC<{ sessions: Session[]; onRemove: (index: number) => void }> = ({
   sessions,
@@ -85,7 +76,13 @@ const ScheduleList: React.FC<{ sessions: Session[]; onRemove: (index: number) =>
       <React.Fragment key={index}>
         <List.Item
           title={session.day}
-          description={session.time}
+          description={`${new Date(session.startTime).toLocaleString([], {
+            hour: '2-digit',
+            minute: '2-digit',
+          })} - ${new Date(session.endTime).toLocaleString([], {
+            hour: '2-digit',
+            minute: '2-digit',
+          })}`}
           left={(props) => <List.Icon {...props} icon="clock-outline" />}
           right={(props) => (
             <IconButton
@@ -106,7 +103,6 @@ const AddEvent: React.FC = () => {
   const [eventInfo, setEventInfo] = useState<EventInfo>({
     name: "",
     code: "",
-    quota: "",
     organizer: "",
     organizerId: "",
     day: "",
@@ -159,17 +155,57 @@ const AddEvent: React.FC = () => {
   };
 
   const addSession = () => {
-    const newSession: Session = {
-      day: eventInfo.day,
-      time: `${eventInfo.startTime} - ${eventInfo.endTime}`,
-    };
-
-    setSessions((prev) => [...prev, newSession]);
-
-    // Reset session fields
-    handleInputChange("day", "");
-    handleInputChange("startTime", "");
-    handleInputChange("endTime", "");
+    if (!eventInfo.day || !eventInfo.startTime || !eventInfo.endTime) {
+      Alert.alert("Error", "Please fill in all session details.");
+      return;
+    }
+  
+    try {
+      // Construct ISO 8601 date strings
+      const dayMap: Record<string, number> = {
+        Sunday: 0,
+        Monday: 1,
+        Tuesday: 2,
+        Wednesday: 3,
+        Thursday: 4,
+        Friday: 5,
+        Saturday: 6,
+      };
+  
+      const currentDate = new Date();
+      const currentDay = currentDate.getDay();
+      const targetDay = dayMap[eventInfo.day];
+      const dayDifference = targetDay >= currentDay ? targetDay - currentDay : 7 - (currentDay - targetDay);
+  
+      const sessionDate = new Date(currentDate);
+      sessionDate.setDate(currentDate.getDate() + dayDifference);
+  
+      const startTime = new Date(
+        `${sessionDate.toISOString().split('T')[0]}T${eventInfo.startTime}:00+08:00`
+      ).toISOString();
+  
+      const endTime = new Date(
+        `${sessionDate.toISOString().split('T')[0]}T${eventInfo.endTime}:00+08:00`
+      ).toISOString();
+  
+      // Create new session object
+      const newSession: Session = {
+        day: eventInfo.day,
+        startTime,
+        endTime,
+      };
+  
+      // Add session to the list
+      setSessions((prev) => [...prev, newSession]);
+  
+      // Reset input fields
+      handleInputChange("day", "");
+      handleInputChange("startTime", "");
+      handleInputChange("endTime", "");
+    } catch (error) {
+      console.error("Error creating session:", error);
+      Alert.alert("Error", "Invalid session details. Please try again.");
+    }
   };
 
   const removeSession = (index: number) => {
@@ -179,32 +215,34 @@ const AddEvent: React.FC = () => {
   const pushToFirebase = async () => {
     const db = getDatabase();
     const eventsRef = ref(db, "events");
-
+  
     try {
       // Push new event
       const newEventRef = push(eventsRef);
       const newEventId = newEventRef.key;
-
+  
       // Prepare sessions for Firebase
       const sessionData = sessions.reduce((acc, session, index) => {
         const sessionId = `${newEventId}-session-${index}`;
-        acc[sessionId] = session;
+        acc[sessionId] = {
+          day: session.day,
+          startTime: session.startTime,
+          endTime: session.endTime,
+        };
         return acc;
       }, {} as Record<string, Session>);
-
+  
       // Create event payload
       const eventPayload = {
         name: eventInfo.name,
         code: eventInfo.code,
-        quota: Number(eventInfo.quota),
         organizer: eventInfo.organizer,
         sessions: sessionData,
-        status: "active",
       };
-
+  
       // Write to Firebase
       await set(newEventRef, eventPayload);
-
+  
       Alert.alert("Success", "Event created successfully!");
       router.back();
     } catch (error) {

@@ -42,7 +42,8 @@ interface StatCardProps {
 
 interface Session {
   day: string;
-  time: string;
+  startTime: string;
+  endTime: string;
 }
 
 interface RouteParams {
@@ -84,7 +85,7 @@ const ScheduleList: React.FC<{ sessions: Session[] }> = ({ sessions }) => (
       <React.Fragment key={index}>
         <List.Item
           title={session.day}
-          description={session.time}
+          description={`${session.startTime} - ${session.endTime}`}
           left={(props) => <List.Icon {...props} icon="clock-outline" />}
         />
         <Divider />

@@ -4,7 +4,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { SafeAreaView, ScrollView, StyleSheet, View, Alert } from 'react-native';
 import { Appbar, Button, Card, Divider, List, Text, TextInput, useTheme } from 'react-native-paper';
 import { TimePickerModal } from 'react-native-paper-dates';
-import { push, ref, update } from 'firebase/database';
+import { push, ref, update, get } from 'firebase/database';
 import { db } from '../../firebaseConfig';
 
 type TimePickerConfirmParams = {
@@ -15,20 +15,20 @@ type TimePickerConfirmParams = {
 interface RouteParams {
   eventName: string;
   organizerName: string;
-  sessions: string; // JSON stringified sessions
   eventId: string;
 }
 
 interface Session {
   sessionId?: string;
   day: string;
-  time: string;
+  startTime: string; // ISO8601 format
+  endTime: string;   // ISO8601 format
 }
 
-const ScheduleList: React.FC<{ day: string; time: string }> = ({ day, time }) => (
+const ScheduleList: React.FC<{ day: string; startTime: string; endTime: string }> = ({ day, startTime, endTime }) => (
   <List.Item
     title={day}
-    description={time}
+    description={`${new Date(startTime).toLocaleTimeString()} - ${new Date(endTime).toLocaleTimeString()}`}
     left={(props) => <List.Icon {...props} icon="clock-outline" />}
   />
 );
@@ -43,23 +43,41 @@ export default function Edit() {
   const [sessions, setSessions] = useState<Session[]>([]);
 
   const [sessionDay, setSessionDay] = useState("");
-  const [sessionStartTime, setSessionStartTime] = useState({ hours: 8, minutes: 0 });
-  const [sessionEndTime, setSessionEndTime] = useState({ hours: 10, minutes: 0 });
+  const [sessionStartTime, setSessionStartTime] = useState<Date>(new Date());
+  const [sessionEndTime, setSessionEndTime] = useState<Date>(new Date());
   const [isStartTimePicker, setIsStartTimePicker] = useState(true);
 
   const route = useRoute();
-  const { eventName: eventNameParam, organizerName: organizerNameParam, sessions: sessionsParam, eventId } =
-    route.params as RouteParams;
+  const { eventName: eventNameParam, organizerName: organizerNameParam, eventId } = route.params as RouteParams;
 
   useEffect(() => {
     setEventName(eventNameParam);
     setOrganizerName(organizerNameParam);
 
-    // Parse sessions from the JSON string
-    if (sessionsParam) {
-      setSessions(JSON.parse(sessionsParam));
-    }
-  }, [eventNameParam, organizerNameParam, sessionsParam]);
+    // Fetch existing sessions from Firebase
+    const fetchSessions = async () => {
+      try {
+        const snapshot = await get(ref(db, `events/${eventId}/sessions`));
+        if (snapshot.exists()) {
+          const sessionData = snapshot.val() as Record<
+          string,
+          { day: string; startTime: string; endTime: string }
+          >;
+          const formattedSessions = Object.entries(sessionData).map(([sessionId, session]) => ({
+            sessionId,
+            day: session.day,
+            startTime: session.startTime,
+            endTime: session.endTime,
+          }));
+          setSessions(formattedSessions);
+        }
+      } catch (error) {
+        console.error("Error fetching sessions:", error);
+      }
+    };
+
+    fetchSessions();
+  }, [eventId, eventNameParam, organizerNameParam]);
 
   const onDismiss = useCallback(() => {
     setVisible(false);
@@ -68,16 +86,18 @@ export default function Edit() {
   const onConfirm = useCallback(
     ({ hours, minutes }: TimePickerConfirmParams) => {
       setVisible(false);
+      const selectedDate = new Date();
+      selectedDate.setHours(hours, minutes, 0, 0);
       if (isStartTimePicker) {
-        setSessionStartTime({ hours, minutes });
+        setSessionStartTime(selectedDate);
       } else {
-        setSessionEndTime({ hours, minutes });
+        setSessionEndTime(selectedDate);
       }
     },
     [isStartTimePicker]
   );
 
-  const renderTimeButton = (label: string, time: { hours: number; minutes: number }, isStart: boolean) => (
+  const renderTimeButton = (label: string, time: Date, isStart: boolean) => (
     <Button
       onPress={() => {
         setIsStartTimePicker(isStart);
@@ -86,27 +106,29 @@ export default function Edit() {
       mode="outlined"
       style={styles.timeButton}
     >
-      {`${label}: ${time.hours.toString().padStart(2, "0")}:${time.minutes.toString().padStart(2, "0")}`}
+      {`${label}: ${time.toLocaleTimeString()}`}
     </Button>
   );
 
   const addSession = () => {
-    const startTimeString = `${sessionStartTime.hours.toString().padStart(2, "0")}:${sessionStartTime.minutes
-      .toString()
-      .padStart(2, "0")}`;
-    const endTimeString = `${sessionEndTime.hours.toString().padStart(2, "0")}:${sessionEndTime.minutes
-      .toString()
-      .padStart(2, "0")}`;
+    if (!sessionDay || !sessionStartTime || !sessionEndTime) {
+      Alert.alert("Error", "Please fill all session details.");
+      return;
+    }
 
     setSessions((prevSessions) => [
       ...prevSessions,
-      { day: sessionDay, time: `${startTimeString} - ${endTimeString}` },
+      {
+        day: sessionDay,
+        startTime: sessionStartTime.toISOString(),
+        endTime: sessionEndTime.toISOString(),
+      },
     ]);
 
     // Reset form fields
     setSessionDay("");
-    setSessionStartTime({ hours: 8, minutes: 0 });
-    setSessionEndTime({ hours: 10, minutes: 0 });
+    setSessionStartTime(new Date());
+    setSessionEndTime(new Date());
     setShowSessionForm(false);
   };
 
@@ -131,31 +153,26 @@ export default function Edit() {
 
   const updateEventInFirebase = async () => {
     try {
-      // Generate unique session IDs and structure the sessions
-      const updatedSessions = sessions.map((session) => {
-        const sessionId = push(ref(db, 'sessions')).key || `fallback-${Date.now()}`; // Generate a unique key for each session
-        return {
-          sessionId,
-          day: session.day,
-          time: session.time,
-        };
-      });
-  
-      // Prepare the updated event structure
+      const updatedSessions = sessions.reduce((acc, session) => {
+        const sessionId = session.sessionId || push(ref(db, `events/${eventId}/sessions`)).key;
+        if (sessionId) {
+          acc[sessionId] = {
+            day: session.day,
+            startTime: session.startTime,
+            endTime: session.endTime,
+          };
+        }
+        return acc;
+      }, {} as Record<string, { day: string; startTime: string; endTime: string }>);
+
       const updatedEvent = {
         name: eventName,
         organizer: organizerName,
-        sessions: updatedSessions.reduce((acc, session) => {
-          if (session.sessionId) {
-            acc[session.sessionId] = { day: session.day, time: session.time };
-          }
-          return acc;
-        }, {} as Record<string, { day: string; time: string }>), // Store sessions as an object with sessionId as the key
+        sessions: updatedSessions,
       };
-  
-      // Update the event in the database
+
       await update(ref(db, `events/${eventId}`), updatedEvent);
-  
+
       Alert.alert("Success", "Event updated successfully!");
       router.back();
     } catch (error) {
@@ -196,7 +213,12 @@ export default function Edit() {
           <Card.Title title="Schedules" />
           <Card.Content>
             {sessions.map((session, index) => (
-              <ScheduleList key={index} day={session.day} time={session.time} />
+              <ScheduleList
+                key={index}
+                day={session.day}
+                startTime={session.startTime}
+                endTime={session.endTime}
+              />
             ))}
           </Card.Content>
           <Card.Actions>
@@ -207,9 +229,8 @@ export default function Edit() {
         </Card>
 
         {showSessionForm && renderSessionForm()}
-
-
       </ScrollView>
+
       <Button mode="contained" style={styles.updateButton} onPress={updateEventInFirebase}>
         Update Event
       </Button>
@@ -218,37 +239,20 @@ export default function Edit() {
         visible={visible}
         onDismiss={onDismiss}
         onConfirm={onConfirm}
-        hours={isStartTimePicker ? sessionStartTime.hours : sessionEndTime.hours}
-        minutes={isStartTimePicker ? sessionStartTime.minutes : sessionEndTime.minutes}
+        hours={isStartTimePicker ? sessionStartTime.getHours() : sessionEndTime.getHours()}
+        minutes={isStartTimePicker ? sessionStartTime.getMinutes() : sessionEndTime.getMinutes()}
       />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: 16,
-  },
-  card: {
-    marginBottom: 16,
-  },
-  input: {
-    marginBottom: 12,
-  },
-  timeButton: {
-    marginBottom: 12,
-  },
-  sessionFormCard: {
-    marginBottom: 16,
-  },
-  addButton: {
-    marginTop: 12,
-  },
-  updateButton: {
-    margin: 16,
-
-  },
+  container: { flex: 1 },
+  scrollContent: { padding: 16 },
+  card: { marginBottom: 16 },
+  input: { marginBottom: 12 },
+  timeButton: { marginBottom: 12 },
+  sessionFormCard: { marginBottom: 16 },
+  addButton: { marginTop: 12 },
+  updateButton: { margin: 16 },
 });
