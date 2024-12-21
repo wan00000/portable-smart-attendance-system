@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   SafeAreaView,
   ScrollView,
@@ -7,8 +7,9 @@ import {
   FlatList,
   TouchableOpacity,
   StyleSheet,
+  Alert,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useRouter } from 'expo-router';
 import {
   Appbar,
   Button,
@@ -25,7 +26,7 @@ import {
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRoute } from '@react-navigation/native';
 import { db } from '../../firebaseConfig';
-import { ref, onValue, update } from 'firebase/database';
+import { ref, onValue, update, remove, getDatabase, get } from 'firebase/database';
 
 interface Student {
   id: string;
@@ -52,6 +53,22 @@ interface RouteParams {
   sessions: string;
   eventId: string;
   organizer: string;
+}
+
+interface StudentRemove {
+  address: string;
+  birthDate: string;
+  cardNo: string;
+  enrolledEvents?: Record<string, boolean>;
+  firstName: string;
+  gender: string;
+  lastName: string;
+  matric: string;
+  phoneNo: string;
+}
+
+interface StudentsData {
+  [studentId: string]: StudentRemove;
 }
 
 const StatCard: React.FC<StatCardProps> = ({ title, value, icon, color }) => (
@@ -173,6 +190,44 @@ const Details: React.FC = () => {
     });
   };
 
+  const removeEventFromFirebase = useCallback(async (eventId: string) => {
+    const db = getDatabase();
+    const eventRef = ref(db, `events/${eventId}`);
+    const attendanceRef = ref(db, `attendance/${eventId}`);
+    const studentsRef = ref(db, `students`);
+  
+    try {
+      // Remove event node
+      await remove(eventRef);
+  
+      // Remove attendance data for the event
+      await remove(attendanceRef);
+  
+      // Remove the event ID from each enrolled student's `enrolledEvents`
+      const studentsSnapshot = await get(studentsRef);
+      if (studentsSnapshot.exists()) {
+        const updates: Record<string, null> = {};
+  
+        const studentsData = studentsSnapshot.val() as StudentsData;
+        for (const [studentId, studentData] of Object.entries(studentsData)) {
+          if (studentData.enrolledEvents?.[eventId]) {
+            updates[`students/${studentId}/enrolledEvents/${eventId}`] = null;
+          }
+        }
+  
+        if (Object.keys(updates).length > 0) {
+          await update(ref(db), updates);
+        }
+      }
+  
+      Alert.alert("Success", "Event removed successfully!");
+      router.back();
+    } catch (error) {
+      console.error("Error removing event:", error);
+      Alert.alert("Error", "Failed to remove event. Please try again.");
+    }
+  }, []);
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <Appbar.Header>
@@ -252,6 +307,17 @@ const Details: React.FC = () => {
           </View>
         </Modal>
       </ScrollView>
+
+      <Button 
+        mode="contained" 
+        style={styles.removeButton}
+        onPress={() => removeEventFromFirebase(eventId)}
+        buttonColor={colors.error}
+        textColor={colors.background}
+      >
+        Remove Event
+      </Button>
+
     </SafeAreaView>
   );
 };
@@ -277,6 +343,7 @@ const styles = StyleSheet.create({
   modalContent: { padding: 20, borderTopLeftRadius: 20, borderTopRightRadius: 20 },
   modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 10 },
   cancelButton: { marginTop: 16 },
+  removeButton: { margin: 16 },
 });
 
 export default Details;
