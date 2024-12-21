@@ -2,8 +2,8 @@ import { useRoute } from '@react-navigation/native';
 import { router } from 'expo-router';
 import React, { useState, useCallback, useEffect } from 'react';
 import { SafeAreaView, ScrollView, StyleSheet, View, Alert } from 'react-native';
-import { Appbar, Button, Card, Divider, List, Text, TextInput, useTheme } from 'react-native-paper';
-import { TimePickerModal } from 'react-native-paper-dates';
+import { Appbar, Button, Card, List, Text, TextInput, useTheme } from 'react-native-paper';
+import { DatePickerModal, TimePickerModal } from 'react-native-paper-dates';
 import { push, ref, update, get } from 'firebase/database';
 import { db } from '../../firebaseConfig';
 
@@ -21,11 +21,11 @@ interface RouteParams {
 interface Session {
   sessionId?: string;
   day: string;
-  startTime: string; // ISO8601 format
-  endTime: string;   // ISO8601 format
+  startTime: string;
+  endTime: string;
 }
 
-const ScheduleList: React.FC<{ day: string; startTime: string; endTime: string }> = ({ day, startTime, endTime }) => (
+const ScheduleList: React.FC<Session> = ({ day, startTime, endTime }) => (
   <List.Item
     title={day}
     description={`${new Date(startTime).toLocaleTimeString()} - ${new Date(endTime).toLocaleTimeString()}`}
@@ -42,7 +42,8 @@ export default function Edit() {
   const [organizerName, setOrganizerName] = useState("");
   const [sessions, setSessions] = useState<Session[]>([]);
 
-  const [sessionDay, setSessionDay] = useState("");
+  const [sessionDate, setSessionDate] = useState<Date | null>(null);
+  const [dateVisible, setDateVisible] = useState(false);
   const [sessionStartTime, setSessionStartTime] = useState<Date>(new Date());
   const [sessionEndTime, setSessionEndTime] = useState<Date>(new Date());
   const [isStartTimePicker, setIsStartTimePicker] = useState(true);
@@ -54,36 +55,49 @@ export default function Edit() {
     setEventName(eventNameParam);
     setOrganizerName(organizerNameParam);
 
-    // Fetch existing sessions from Firebase
     const fetchSessions = async () => {
       try {
         const snapshot = await get(ref(db, `events/${eventId}/sessions`));
         if (snapshot.exists()) {
-          const sessionData = snapshot.val() as Record<
-          string,
-          { day: string; startTime: string; endTime: string }
-          >;
+          const sessionData = snapshot.val() as Record<string, Session>;
           const formattedSessions = Object.entries(sessionData).map(([sessionId, session]) => ({
             sessionId,
-            day: session.day,
-            startTime: session.startTime,
-            endTime: session.endTime,
+            ...session,
           }));
           setSessions(formattedSessions);
         }
       } catch (error) {
         console.error("Error fetching sessions:", error);
+        Alert.alert("Error", "Failed to fetch sessions. Please try again.");
       }
     };
 
     fetchSessions();
   }, [eventId, eventNameParam, organizerNameParam]);
 
-  const onDismiss = useCallback(() => {
+  const onDismissDatePicker = useCallback(() => {
+    setDateVisible(false);
+  }, []);
+
+  const onConfirmDatePicker = useCallback((params: any) => {
+    const { date } = params; // Ensure params have the correct structure
+    if (date) {
+        setDateVisible(false);
+        setSessionDate(date);
+        const startTime = new Date(date);
+        startTime.setHours(8, 0, 0, 0); // Default to 8:00 AM
+        const endTime = new Date(date);
+        endTime.setHours(10, 0, 0, 0); // Default to 10:00 AM
+        setSessionStartTime(startTime);
+        setSessionEndTime(endTime);
+    }
+}, []);
+
+  const onDismissTimePicker = useCallback(() => {
     setVisible(false);
   }, []);
 
-  const onConfirm = useCallback(
+  const onConfirmTimePicker = useCallback(
     ({ hours, minutes }: TimePickerConfirmParams) => {
       setVisible(false);
       const selectedDate = new Date();
@@ -97,7 +111,7 @@ export default function Edit() {
     [isStartTimePicker]
   );
 
-  const renderTimeButton = (label: string, time: Date, isStart: boolean) => (
+  const renderTimeButton = useCallback((label: string, time: Date, isStart: boolean) => (
     <Button
       onPress={() => {
         setIsStartTimePicker(isStart);
@@ -108,40 +122,40 @@ export default function Edit() {
     >
       {`${label}: ${time.toLocaleTimeString()}`}
     </Button>
-  );
+  ), []);
 
-  const addSession = () => {
-    if (!sessionDay || !sessionStartTime || !sessionEndTime) {
-      Alert.alert("Error", "Please fill all session details.");
+  const addSession = useCallback(() => {
+    if (!sessionDate) {
+      Alert.alert("Error", "Please select a date.");
       return;
     }
 
     setSessions((prevSessions) => [
       ...prevSessions,
       {
-        day: sessionDay,
+        day: sessionDate.toISOString().split('T')[0],
         startTime: sessionStartTime.toISOString(),
         endTime: sessionEndTime.toISOString(),
       },
     ]);
 
-    // Reset form fields
-    setSessionDay("");
+    setSessionDate(null);
     setSessionStartTime(new Date());
     setSessionEndTime(new Date());
     setShowSessionForm(false);
-  };
+  }, [sessionDate, sessionStartTime, sessionEndTime]);
 
-  const renderSessionForm = () => (
+  const renderSessionForm = useCallback(() => (
     <Card style={styles.sessionFormCard}>
       <Card.Content>
-        <TextInput
-          label="Day"
-          value={sessionDay}
-          onChangeText={setSessionDay}
-          mode="outlined"
-          style={styles.input}
-        />
+        <Button onPress={() => setDateVisible(true)} mode="outlined" style={styles.dateButton}>
+          Select Date
+        </Button>
+        {sessionDate && (
+          <Text style={styles.dateText}>
+            {`Selected Date: ${sessionDate.toLocaleDateString()}`}
+          </Text>
+        )}
         {renderTimeButton("Start Time", sessionStartTime, true)}
         {renderTimeButton("End Time", sessionEndTime, false)}
         <Button mode="contained" style={styles.addButton} onPress={addSession}>
@@ -149,37 +163,51 @@ export default function Edit() {
         </Button>
       </Card.Content>
     </Card>
-  );
+  ), [sessionDate, sessionStartTime, sessionEndTime, addSession, renderTimeButton]);
 
-  const updateEventInFirebase = async () => {
+  const updateEventInFirebase = useCallback(async () => {
     try {
-      const updatedSessions = sessions.reduce((acc, session) => {
-        const sessionId = session.sessionId || push(ref(db, `events/${eventId}/sessions`)).key;
-        if (sessionId) {
-          acc[sessionId] = {
-            day: session.day,
-            startTime: session.startTime,
-            endTime: session.endTime,
-          };
+      const updatedSessions = sessions.reduce((acc, session, index) => {
+        const sessionId = `${eventId}-session-${index}`;
+        
+        const startDate = new Date(session.startTime);
+        const endDate = new Date(session.endTime);
+  
+        // Ensure start and end time have the same date
+        const day = startDate.toLocaleDateString("en-US", { weekday: "long" }); // "Sunday"
+        const date = startDate.toISOString().split("T")[0]; // "YYYY-MM-DD"
+  
+        if (startDate.toDateString() !== endDate.toDateString()) {
+          endDate.setFullYear(startDate.getFullYear());
+          endDate.setMonth(startDate.getMonth());
+          endDate.setDate(startDate.getDate());
         }
+  
+        acc[sessionId] = {
+          day,
+          // date,
+          startTime: startDate.toISOString(),
+          endTime: endDate.toISOString(),
+        };
+  
         return acc;
-      }, {} as Record<string, { day: string; startTime: string; endTime: string }>);
-
+      }, {} as Record<string, Omit<Session, "sessionId">>);
+  
       const updatedEvent = {
         name: eventName,
         organizer: organizerName,
         sessions: updatedSessions,
       };
-
+  
       await update(ref(db, `events/${eventId}`), updatedEvent);
-
+  
       Alert.alert("Success", "Event updated successfully!");
       router.back();
     } catch (error) {
       console.error("Error updating event:", error);
       Alert.alert("Error", "Failed to update event. Please try again.");
     }
-  };
+  }, [eventId, eventName, organizerName, sessions]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -213,12 +241,7 @@ export default function Edit() {
           <Card.Title title="Schedules" />
           <Card.Content>
             {sessions.map((session, index) => (
-              <ScheduleList
-                key={index}
-                day={session.day}
-                startTime={session.startTime}
-                endTime={session.endTime}
-              />
+              <ScheduleList key={index} {...session} />
             ))}
           </Card.Content>
           <Card.Actions>
@@ -235,10 +258,18 @@ export default function Edit() {
         Update Event
       </Button>
 
+      <DatePickerModal
+        locale='en'
+        visible={dateVisible}
+        onDismiss={onDismissDatePicker}
+        onConfirm={onConfirmDatePicker}
+        mode="single"
+      />
+      
       <TimePickerModal
         visible={visible}
-        onDismiss={onDismiss}
-        onConfirm={onConfirm}
+        onDismiss={onDismissTimePicker}
+        onConfirm={onConfirmTimePicker}
         hours={isStartTimePicker ? sessionStartTime.getHours() : sessionEndTime.getHours()}
         minutes={isStartTimePicker ? sessionStartTime.getMinutes() : sessionEndTime.getMinutes()}
       />
@@ -255,4 +286,7 @@ const styles = StyleSheet.create({
   sessionFormCard: { marginBottom: 16 },
   addButton: { marginTop: 12 },
   updateButton: { margin: 16 },
+  dateButton: { marginBottom: 12 },
+  dateText: { marginBottom: 12, fontSize: 16 },
 });
+
