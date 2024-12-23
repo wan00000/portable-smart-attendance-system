@@ -4,9 +4,19 @@ import { Card, Text, Button, useTheme } from 'react-native-paper';
 import { LineChart } from 'react-native-chart-kit';
 import { Dimensions } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { getDatabase, ref, get, query, orderByKey, limitToLast } from "firebase/database";
+import { getDatabase, ref, get, query, orderByKey, limitToLast } from 'firebase/database';
 
 type GraphType = 'percentage' | 'present' | 'absent';
+interface AttendanceRecord {
+  attendancePercentage: number;
+  actualStatus: 'present' | 'absent';
+}
+interface DayAttendance {
+  [sessionId: string]: { [studentId: string]: AttendanceRecord };
+}
+interface AttendanceData {
+  [day: string]: DayAttendance;
+}
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 
@@ -15,9 +25,9 @@ const AttendanceGraph: React.FC = () => {
   const screenWidth = Dimensions.get('window').width;
   const [selectedGraph, setSelectedGraph] = useState<GraphType>('percentage');
   const [graphData, setGraphData] = useState({
-    percentage: [0, 0, 0, 0, 0],
-    present: [0, 0, 0, 0, 0],
-    absent: [0, 0, 0, 0, 0],
+    percentage: Array(DAYS.length).fill(0),
+    present: Array(DAYS.length).fill(0),
+    absent: Array(DAYS.length).fill(0),
   });
 
   const chartConfig = useMemo(() => ({
@@ -25,8 +35,8 @@ const AttendanceGraph: React.FC = () => {
     backgroundGradientFrom: colors.surface,
     backgroundGradientTo: colors.surfaceVariant,
     decimalPlaces: 1,
-    color: (opacity = 1) => colors.primary,
-    labelColor: (opacity = 1) => colors.onSurface,
+    color: () => colors.primary,
+    labelColor: () => colors.onSurface,
     style: { borderRadius: 16 },
     propsForDots: {
       r: '6',
@@ -43,27 +53,30 @@ const AttendanceGraph: React.FC = () => {
 
       const snapshot = await get(lastWeekQuery);
       if (snapshot.exists()) {
-        const data = snapshot.val();
-        const percentageData = [];
-        const presentData = [];
-        const absentData = [];
+        const data: AttendanceData = snapshot.val();
+        const percentageData: number[] = [];
+        const presentData: number[] = [];
+        const absentData: number[] = [];
 
         for (const day of Object.keys(data)) {
-          let dayPercentage = 0;
+          let totalPercentage = 0;
           let presentCount = 0;
           let absentCount = 0;
+          let totalStudents = 0;
 
           for (const sessionId of Object.keys(data[day])) {
-            for (const studentId of Object.keys(data[day][sessionId])) {
-              const record = data[day][sessionId][studentId];
-              dayPercentage += record.attendancePercentage || 0;
+            const session = data[day][sessionId];
+            totalStudents += Object.keys(session).length;
+
+            for (const studentId of Object.keys(session)) {
+              const record = session[studentId];
+              totalPercentage += record.attendancePercentage || 0;
               if (record.actualStatus === 'present') presentCount++;
               if (record.actualStatus === 'absent') absentCount++;
             }
           }
 
-          const totalRecords = Object.keys(data[day]).length;
-          percentageData.push(totalRecords ? dayPercentage / totalRecords : 0);
+          percentageData.push(totalStudents ? totalPercentage / totalStudents : 0);
           presentData.push(presentCount);
           absentData.push(absentCount);
         }
@@ -96,7 +109,7 @@ const AttendanceGraph: React.FC = () => {
     <Card style={styles.card}>
       <Card.Title
         title="Weekly Attendance Overview"
-        left={(props) => <MaterialCommunityIcons name="chart-line" size={24} color={colors.primary} />}
+        left={() => <MaterialCommunityIcons name="chart-line" size={24} color={colors.primary} />}
       />
       <Card.Content>
         <View style={styles.buttonContainer}>

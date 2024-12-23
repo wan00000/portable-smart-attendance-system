@@ -168,7 +168,7 @@ const HomeScreen: React.FC = () => {
   }, []);
 
   const stats: StatCardProps[] = [
-    { title: 'Total Attendance', value: `${totalAttendancePercentage.toFixed(2)}%`, color: colors.primary, icon: 'account-check' },
+    { title: 'Total Attendance', value: `${totalAttendancePercentage.toFixed(0)}%`, color: colors.primary, icon: 'account-check' },
     { title: 'Total Present', value: `${totalPresent}`, color: colors.secondary, icon: 'account-group' },
     { title: 'Total Absent', value: `${totalAbsent}`, color: colors.error, icon: 'account-remove' },
     { title: 'Active Events', value: `${activeEventCount}`, color: colors.tertiary, icon: 'calendar-check' },
