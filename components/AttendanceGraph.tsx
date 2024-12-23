@@ -1,24 +1,12 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Card, Text, Button, useTheme } from 'react-native-paper';
 import { LineChart } from 'react-native-chart-kit';
 import { Dimensions } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { getDatabase, ref, get, query, orderByKey, limitToLast } from "firebase/database";
 
 type GraphType = 'percentage' | 'present' | 'absent';
-
-interface GraphData {
-  title: string;
-  data: number[];
-  suffix: string;
-  icon: string;
-}
-
-const GRAPH_DATA: Record<GraphType, GraphData> = {
-  percentage: { title: 'Attendance Percentage', data: [85, 88, 82, 91, 86], suffix: '%', icon: 'percent' },
-  present: { title: 'Students Present', data: [20, 22, 19, 24, 21], suffix: '', icon: 'account-check' },
-  absent: { title: 'Students Absent', data: [5, 3, 6, 2, 4], suffix: '', icon: 'account-remove' },
-};
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 
@@ -26,12 +14,17 @@ const AttendanceGraph: React.FC = () => {
   const { colors } = useTheme();
   const screenWidth = Dimensions.get('window').width;
   const [selectedGraph, setSelectedGraph] = useState<GraphType>('percentage');
+  const [graphData, setGraphData] = useState({
+    percentage: [0, 0, 0, 0, 0],
+    present: [0, 0, 0, 0, 0],
+    absent: [0, 0, 0, 0, 0],
+  });
 
   const chartConfig = useMemo(() => ({
     backgroundColor: colors.surface,
     backgroundGradientFrom: colors.surface,
     backgroundGradientTo: colors.surfaceVariant,
-    decimalPlaces: 0,
+    decimalPlaces: 1,
     color: (opacity = 1) => colors.primary,
     labelColor: (opacity = 1) => colors.onSurface,
     style: { borderRadius: 16 },
@@ -42,12 +35,56 @@ const AttendanceGraph: React.FC = () => {
     },
   }), [colors]);
 
+  useEffect(() => {
+    const fetchAttendanceData = async () => {
+      const db = getDatabase();
+      const attendanceRef = ref(db, 'attendance');
+      const lastWeekQuery = query(attendanceRef, orderByKey(), limitToLast(7));
+
+      const snapshot = await get(lastWeekQuery);
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        const percentageData = [];
+        const presentData = [];
+        const absentData = [];
+
+        for (const day of Object.keys(data)) {
+          let dayPercentage = 0;
+          let presentCount = 0;
+          let absentCount = 0;
+
+          for (const sessionId of Object.keys(data[day])) {
+            for (const studentId of Object.keys(data[day][sessionId])) {
+              const record = data[day][sessionId][studentId];
+              dayPercentage += record.attendancePercentage || 0;
+              if (record.actualStatus === 'present') presentCount++;
+              if (record.actualStatus === 'absent') absentCount++;
+            }
+          }
+
+          const totalRecords = Object.keys(data[day]).length;
+          percentageData.push(totalRecords ? dayPercentage / totalRecords : 0);
+          presentData.push(presentCount);
+          absentData.push(absentCount);
+        }
+
+        setGraphData({
+          percentage: percentageData,
+          present: presentData,
+          absent: absentData,
+        });
+      }
+    };
+
+    fetchAttendanceData();
+  }, []);
+
   const renderGraphTypeButton = (type: GraphType) => (
     <Button
       key={type}
       mode={selectedGraph === type ? 'contained' : 'outlined'}
       onPress={() => setSelectedGraph(type)}
-      icon={GRAPH_DATA[type].icon}
+      icon={type === 'percentage' ? 'percent' : type === 'present' ? 'account-check' : 'account-remove'}
       style={styles.button}
       labelStyle={styles.buttonLabel}
     >
@@ -63,24 +100,28 @@ const AttendanceGraph: React.FC = () => {
       />
       <Card.Content>
         <View style={styles.buttonContainer}>
-          {Object.keys(GRAPH_DATA).map((type) => renderGraphTypeButton(type as GraphType))}
+          {['percentage', 'present', 'absent'].map((type) =>
+            renderGraphTypeButton(type as GraphType)
+          )}
         </View>
-        <Text style={styles.graphTitle}>{GRAPH_DATA[selectedGraph].title}</Text>
+        <Text style={styles.graphTitle}>
+          {selectedGraph.charAt(0).toUpperCase() + selectedGraph.slice(1)} Trends
+        </Text>
         <LineChart
           data={{
             labels: DAYS,
-            datasets: [{ data: GRAPH_DATA[selectedGraph].data }],
+            datasets: [{ data: graphData[selectedGraph] }],
           }}
           width={screenWidth - 64}
           height={220}
-          yAxisSuffix={GRAPH_DATA[selectedGraph].suffix}
+          yAxisSuffix={selectedGraph === 'percentage' ? '%' : ''}
           chartConfig={chartConfig}
           bezier
           style={styles.chart}
         />
         <Text style={styles.averageText}>
-          Weekly Average: {GRAPH_DATA[selectedGraph].data.reduce((a, b) => a + b, 0) / GRAPH_DATA[selectedGraph].data.length}
-          {GRAPH_DATA[selectedGraph].suffix}
+          Weekly Average: {(graphData[selectedGraph].reduce((a, b) => a + b, 0) / DAYS.length).toFixed(2)}
+          {selectedGraph === 'percentage' ? '%' : ''}
         </Text>
       </Card.Content>
     </Card>
@@ -88,39 +129,13 @@ const AttendanceGraph: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  card: {
-    margin: 16,
-    elevation: 4,
-  },
-  buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  button: {
-    flex: 1,
-    marginHorizontal: 4,
-  },
-  buttonLabel: {
-    fontSize: 12,
-  },
-  graphTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  chart: {
-    marginVertical: 8,
-    borderRadius: 16,
-  },
-  averageText: {
-    fontSize: 14,
-    fontStyle: 'italic',
-    textAlign: 'center',
-    marginTop: 8,
-  },
+  card: { margin: 16, elevation: 4 },
+  buttonContainer: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 },
+  button: { flex: 1, marginHorizontal: 4 },
+  buttonLabel: { fontSize: 12 },
+  graphTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 8, textAlign: 'center' },
+  chart: { marginVertical: 8, borderRadius: 16 },
+  averageText: { fontSize: 14, fontStyle: 'italic', textAlign: 'center', marginTop: 8 },
 });
 
 export default AttendanceGraph;
-

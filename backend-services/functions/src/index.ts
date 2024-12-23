@@ -23,7 +23,7 @@ interface Event {
 
 export const fetchAndFilterSessions = onSchedule(
   {
-    schedule: "every day 20:00",
+    schedule: "every 48 hours",
     timeZone: "Asia/Kuala_Lumpur",
     region: "asia-southeast1",
   },
@@ -406,7 +406,7 @@ interface AttendanceLog {
 
 export const aggregateEventAttendance = onSchedule(
   {
-    schedule: "every day 20:30",
+    schedule: "every 48 hours",
     timeZone: "Asia/Kuala_Lumpur",
     region: "asia-southeast1",
   },
