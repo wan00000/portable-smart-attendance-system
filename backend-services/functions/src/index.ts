@@ -508,3 +508,285 @@ export const aggregateEventAttendance = onSchedule(
     }
   }
 );
+
+
+import * as nodemailer from "nodemailer";
+import dotenv = require("dotenv");
+
+dotenv.config();
+
+// Configure the email transporter
+const transporter = nodemailer.createTransport({
+  host: "smtp.gmail.com",
+  port: 587,
+  secure: false,
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+  tls: {
+    ciphers: "SSLv3",
+  },
+});
+
+export const emailCheckIn = onValueCreated(
+  {
+    ref: "attendance/{eventId}/{sessionId}/{studentId}/checkInTime",
+    region: "asia-southeast1",
+  },
+  async (event) => {
+    try {
+      const {eventId, studentId} = event.params;
+      const checkInTime = event.data.val();
+
+      if (!checkInTime) {
+        console.log("No check-in time found, skipping email.");
+        return;
+      }
+
+      const db = getDatabase();
+      const studentRef = db.ref(`students/${studentId}`);
+      const eventRef = db.ref(`events/${eventId}`);
+
+      // Fetch student data
+      const studentSnapshot = await studentRef.once("value");
+      const studentData = studentSnapshot.val();
+
+      if (!studentData) {
+        console.error("Student data not found for ID:", studentId);
+        return;
+      }
+
+      // Fetch event data
+      const eventSnapshot = await eventRef.once("value");
+      const eventData = eventSnapshot.val();
+
+      if (!eventData) {
+        console.error("Event data not found for ID:", eventId);
+        return;
+      }
+
+      // Parse check-in time
+      const checkInDate = new Date(checkInTime);
+
+      // Find the specific session the student is attending
+      const session = Object.values(eventData.sessions).find((session) => {
+        const sessionData = session as {
+          startTime: string;
+          endTime: string;
+          day: string };
+        const sessionStartTime = new Date(sessionData.startTime);
+        const sessionEndTime = new Date(sessionData.endTime);
+
+        // Check if check-in time falls within the session's start and end times
+        return checkInDate >= sessionStartTime && checkInDate <= sessionEndTime;
+      });
+
+      if (!session) {
+        console.error("No session found matching the check-in time.");
+        return;
+      }
+
+      // Format session times
+      const sessionData = session as {
+        startTime: string;
+        endTime: string;
+        day: string };
+      const formattedStartTime = new Intl.DateTimeFormat("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone: "Asia/Kuala_Lumpur", // Specify the timezone
+      }).format(new Date(sessionData.startTime));
+
+      const formattedEndTime = new Intl.DateTimeFormat("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone: "Asia/Kuala_Lumpur", // Specify the timezone
+      }).format(new Date(sessionData.endTime));
+
+      const formattedCheckInTime = new Intl.DateTimeFormat("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone: "Asia/Kuala_Lumpur", // Specify the timezone
+      }).format(new Date(checkInTime));
+
+      // Compose email
+      const studentEmail = `${studentData.matric}@upm.edu.my`;
+      const subject = "Check-In Verification";
+      const content = `
+        Dear ${studentData.firstName},
+
+        You have successfully checked in for the following event:
+
+        Event Name: ${eventData.name}
+        Event Code: ${eventData.code}
+        Session Details: ${sessionData.day},
+        ${formattedStartTime} - ${formattedEndTime}
+        Check-In Time: ${formattedCheckInTime}
+
+        Best regards,
+        iDATANG Team
+      `;
+
+      // Send email
+      const emailOptions = {
+        from: "a9uf@gmail.com",
+        to: studentEmail,
+        subject: subject,
+        text: content,
+      };
+
+      await transporter.sendMail(emailOptions);
+      console.log("Check-in email sent successfully to:", studentEmail);
+    } catch (error) {
+      console.error("Error sending email:", error);
+    }
+  }
+);
+
+export const emailCheckOut = onValueCreated(
+  {
+    ref: "attendance/{eventId}/{sessionId}/{studentId}/attendancePercentage",
+    region: "asia-southeast1",
+  },
+  async (event) => {
+    try {
+      const {eventId, sessionId, studentId} = event.params;
+      const checkOutTime = event.data.val();
+
+      if (!checkOutTime) {
+        console.log("No check-out time found, skipping email.");
+        return;
+      }
+
+      const db = getDatabase();
+      const studentRef = db.ref(`students/${studentId}`);
+      const eventRef = db.ref(`events/${eventId}`);
+
+      // Fetch student data
+      const studentSnapshot = await studentRef.once("value");
+      const studentData = studentSnapshot.val();
+
+      if (!studentData) {
+        console.error("Student data not found for ID:", studentId);
+        return;
+      }
+
+      // Fetch event data
+      const eventSnapshot = await eventRef.once("value");
+      const eventData = eventSnapshot.val();
+
+      if (!eventData) {
+        console.error("Event data not found for ID:", eventId);
+        return;
+      }
+
+      // Fetch attendance details
+      const attendanceRef = db.ref(
+        `attendance/${eventId}/${sessionId}/${studentId}`
+      );
+      const attendanceSnapshot = await attendanceRef.once("value");
+      const attendanceData = attendanceSnapshot.val();
+
+      if (!attendanceData) {
+        console.error("Attendance data not found for student in session.");
+        return;
+      }
+
+      const {checkInTime, attendancePercentage, actualStatus} = attendanceData;
+
+      if (!checkInTime) {
+        console.error("Check-in time not found in attendance data.");
+        return;
+      }
+
+      // Parse check-in time
+      const checkInDate = new Date(checkInTime);
+
+      // Find the specific session the student is attending
+      const session = Object.values(eventData.sessions).find((session) => {
+        const sessionData = session as {
+          startTime: string;
+          endTime: string;
+          day: string };
+        const sessionStartTime = new Date(sessionData.startTime);
+        const sessionEndTime = new Date(sessionData.endTime);
+
+        // Check if check-in time falls within the session's start and end times
+        return checkInDate >= sessionStartTime && checkInDate <= sessionEndTime;
+      });
+
+      if (!session) {
+        console.error("No session found matching the check-in time.");
+        return;
+      }
+
+      // Format session times
+      const sessionData = session as {
+        startTime: string;
+        endTime: string;
+        day: string };
+      const formattedStartTime = new Intl.DateTimeFormat("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone: "Asia/Kuala_Lumpur", // Specify the timezone
+      }).format(new Date(sessionData.startTime));
+
+      const formattedEndTime = new Intl.DateTimeFormat("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone: "Asia/Kuala_Lumpur", // Specify the timezone
+      }).format(new Date(sessionData.endTime));
+
+      const formattedCheckInTime = new Intl.DateTimeFormat("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone: "Asia/Kuala_Lumpur", // Specify the timezone
+      }).format(new Date(checkInTime));
+
+      const formattedCheckOutTime = new Intl.DateTimeFormat("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone: "Asia/Kuala_Lumpur", // Specify the timezone
+      }).format(new Date(checkOutTime));
+
+      const formattedAttendancePercentage=`${attendancePercentage.toFixed(0)}%`;
+
+      // Compose email
+      const studentEmail = `${studentData.matric}@upm.edu.my`;
+      const subject = "Check-In Verification";
+      const content = `
+        Dear ${studentData.firstName},
+
+        You have successfully checked out for the following event:
+
+        Event Name: ${eventData.name}
+        Event Code: ${eventData.code}
+        Session Details: ${sessionData.day},
+        ${formattedStartTime} - ${formattedEndTime}
+        Check-In Time: ${formattedCheckInTime}
+        Check-Out Time: ${formattedCheckOutTime}
+        Attendance Percentage: ${formattedAttendancePercentage}
+        Status: ${actualStatus}
+
+        Best regards,
+        iDATANG Team
+      `;
+
+      // Send email
+      const emailOptions = {
+        from: "a9uf@gmail.com",
+        to: studentEmail,
+        subject: subject,
+        text: content,
+      };
+
+      await transporter.sendMail(emailOptions);
+      console.log("Check-in email sent successfully to:", studentEmail);
+    } catch (error) {
+      console.error("Error sending email:", error);
+    }
+  }
+);
+
+
