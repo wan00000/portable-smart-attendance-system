@@ -652,12 +652,6 @@ export const emailCheckOut = onValueCreated(
   async (event) => {
     try {
       const {eventId, sessionId, studentId} = event.params;
-      const checkOutTime = event.data.val();
-
-      if (!checkOutTime) {
-        console.log("No check-out time found, skipping email.");
-        return;
-      }
 
       const db = getDatabase();
       const studentRef = db.ref(`students/${studentId}`);
@@ -693,7 +687,12 @@ export const emailCheckOut = onValueCreated(
         return;
       }
 
-      const {checkInTime, attendancePercentage, actualStatus} = attendanceData;
+      const {
+        checkInTime,
+        checkOutTime,
+        attendancePercentage,
+        actualStatus,
+      } = attendanceData;
 
       if (!checkInTime) {
         console.error("Check-in time not found in attendance data.");
@@ -749,12 +748,13 @@ export const emailCheckOut = onValueCreated(
         minute: "2-digit",
         timeZone: "Asia/Kuala_Lumpur", // Specify the timezone
       }).format(new Date(checkOutTime));
+      console.log("Check-Out Time processed correctly:", formattedCheckOutTime);
 
       const formattedAttendancePercentage=`${attendancePercentage.toFixed(0)}%`;
 
       // Compose email
       const studentEmail = `${studentData.matric}@upm.edu.my`;
-      const subject = "Check-In Verification";
+      const subject = "Check-Out Verification";
       const content = `
         Dear ${studentData.firstName},
 
