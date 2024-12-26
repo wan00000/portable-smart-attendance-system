@@ -1,11 +1,11 @@
 //app\(tabs)\home.tsx
 import { Link, router } from 'expo-router';
 import * as React from 'react';
-import { View, ScrollView, Image, StyleSheet } from 'react-native';
+import { View, ScrollView, Image, StyleSheet, RefreshControl } from 'react-native';
 import { Appbar, Avatar, Card, Divider, FAB, List, Portal, ProgressBar, Provider, useTheme, Text } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { get, getDatabase, ref } from 'firebase/database';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 interface StatCardProps {
   title: string;
@@ -83,51 +83,49 @@ const HomeScreen: React.FC = () => {
   const [totalPresent, setTotalPresent] = useState(0);
   const [totalAbsent, setTotalAbsent] = useState(0);
   const [activeEventCount, setActiveEventCount] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    const fetchAttendanceData = async () => {
-      const db = getDatabase();
+  const fetchAttendanceData = async () => {
+    const db = getDatabase();
 
-      // Fetch attendance data
-      const attendanceRef = ref(db, 'attendance');
-      const attendanceSnapshot = await get(attendanceRef);
+    // Fetch attendance data
+    const attendanceRef = ref(db, 'attendance');
+    const attendanceSnapshot = await get(attendanceRef);
 
-      if (attendanceSnapshot.exists()) {
-        const attendanceData = attendanceSnapshot.val();
-        let presentCount = 0;
-        let absentCount = 0;
-        let totalPercentage = 0;
-        let studentCount = 0;
+    if (attendanceSnapshot.exists()) {
+      const attendanceData = attendanceSnapshot.val();
+      let presentCount = 0;
+      let absentCount = 0;
+      let totalPercentage = 0;
+      let studentCount = 0;
 
-        for (const eventId in attendanceData) {
-          for (const sessionId in attendanceData[eventId]) {
-            for (const studentId in attendanceData[eventId][sessionId]) {
-              const record = attendanceData[eventId][sessionId][studentId];
-              if (record.actualStatus === 'present') {
-                presentCount++;
-              } else if (record.actualStatus === 'absent') {
-                absentCount++;
-              }
-              if (record.attendancePercentage) {
-                totalPercentage += record.attendancePercentage;
-              }
-              studentCount++;
+      for (const eventId in attendanceData) {
+        for (const sessionId in attendanceData[eventId]) {
+          for (const studentId in attendanceData[eventId][sessionId]) {
+            const record = attendanceData[eventId][sessionId][studentId];
+            if (record.actualStatus === 'present') {
+              presentCount++;
+            } else if (record.actualStatus === 'absent') {
+              absentCount++;
             }
+            if (record.attendancePercentage) {
+              totalPercentage += record.attendancePercentage;
+            }
+            studentCount++;
           }
         }
-
-        setTotalAttendancePercentage(
-          studentCount > 0 ? totalPercentage / studentCount : 0
-        );
-        setTotalPresent(presentCount);
-        setTotalAbsent(absentCount);
       }
-    };
+
+      setTotalAttendancePercentage(
+        studentCount > 0 ? totalPercentage / studentCount : 0
+      );
+      setTotalPresent(presentCount);
+      setTotalAbsent(absentCount);
+    }
+  };
 
     const fetchActiveSessions = async () => {
       const db = getDatabase();
-
-      // Fetch active sessions
       const activeSessionsRef = ref(db, 'activeSessions');
       const activeSessionsSnapshot = await get(activeSessionsRef);
 
@@ -163,9 +161,18 @@ const HomeScreen: React.FC = () => {
       }
     };
 
-    fetchAttendanceData();
-    fetchActiveSessions();
+  const fetchData = useCallback(async () => {
+    await Promise.all([fetchAttendanceData(), fetchActiveSessions()]);
   }, []);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchData().finally(() => setRefreshing(false));
+  }, [fetchData]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const stats: StatCardProps[] = [
     { title: 'Total Attendance', value: `${totalAttendancePercentage.toFixed(0)}%`, color: colors.primary, icon: 'account-check' },
@@ -261,7 +268,16 @@ const HomeScreen: React.FC = () => {
           <Avatar.Image size={40} source={require('@/assets/images/avatar.png')} style={styles.avatar} />
         </Appbar.Header>
 
-        <ScrollView contentContainerStyle={styles.scrollContent}>
+        <ScrollView 
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[colors.primary]}
+          />
+        }
+        >
           <View style={styles.statsContainer}>
             {stats.map((stat, index) => (
               <StatCard key={index} {...stat} />

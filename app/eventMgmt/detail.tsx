@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  RefreshControl,
 } from 'react-native';
 import { router, useRouter } from 'expo-router';
 import {
@@ -113,6 +114,7 @@ const ScheduleList: React.FC<{ sessions: Session[] }> = ({ sessions }) => (
 
 const Details: React.FC = () => {
   const { colors } = useTheme();
+  const [refreshing, setRefreshing] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [enrolledStudents, setEnrolledStudents] = useState<Student[]>([]);
   const [nonEnrolledStudents, setNonEnrolledStudents] = useState<Student[]>([]);
@@ -122,35 +124,49 @@ const Details: React.FC = () => {
   const { course, code, sessions, eventId, organizer } = route.params as RouteParams;
   const parsedSessions: Session[] = JSON.parse(sessions);
 
-  useEffect(() => {
-    const studentsRef = ref(db, 'students');
+  const fetchStudentsData = useCallback(async () => {
+    try{
+      const studentsRef = ref(db, 'students');
 
-    // Fetch and separate students into enrolled and non-enrolled
-    onValue(studentsRef, (snapshot) => {
-      const data = snapshot.val();
-      if (data) {
-        const enrolled: Student[] = [];
-        const nonEnrolled: Student[] = [];
+      // Fetch and separate students into enrolled and non-enrolled
+      onValue(studentsRef, (snapshot) => {
+        const data = snapshot.val();
+        if (data) {
+          const enrolled: Student[] = [];
+          const nonEnrolled: Student[] = [];
 
-        Object.entries(data).forEach(([id, student]: [string, any]) => {
-          const studentData: Student = {
-            id,
-            name: `${student.firstName} ${student.lastName}`,
-            matric: student.matric,
-          };
+          Object.entries(data).forEach(([id, student]: [string, any]) => {
+            const studentData: Student = {
+              id,
+              name: `${student.firstName} ${student.lastName}`,
+              matric: student.matric,
+            };
 
-          if (student.enrolledEvents?.[eventId]) {
-            enrolled.push(studentData);
-          } else {
-            nonEnrolled.push(studentData);
-          }
-        });
+            if (student.enrolledEvents?.[eventId]) {
+              enrolled.push(studentData);
+            } else {
+              nonEnrolled.push(studentData);
+            }
+          });
 
-        setEnrolledStudents(enrolled);
-        setNonEnrolledStudents(nonEnrolled);
-      }
-    });
+          setEnrolledStudents(enrolled);
+          setNonEnrolledStudents(nonEnrolled);
+        }
+      });
+    } catch (error){
+      console.error('Error fetching student data:', error);
+      Alert.alert('Error', 'Failed to fetch data. Please try again later.');
+    }
   }, [eventId]);
+
+  useEffect(() => {
+    fetchStudentsData();
+  }, [fetchStudentsData]);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchStudentsData().finally(() => setRefreshing(false));
+  }, [fetchStudentsData]);
 
   const enrollStudentInEvent = (studentId: string) => {
     const studentRef = ref(db, `students/${studentId}`);
@@ -236,7 +252,14 @@ const Details: React.FC = () => {
         <Appbar.Action icon="square-edit-outline" onPress={handleEditEvent} />
       </Appbar.Header>
 
-      <ScrollView>
+      <ScrollView
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+          />
+        }
+      >
         <Card style={styles.card}>
           <Card.Title
             title={course}

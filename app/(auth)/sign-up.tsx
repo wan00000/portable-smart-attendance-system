@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { SafeAreaView, ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Text, TextInput, useTheme } from 'react-native-paper';
 import { auth } from '@/firebaseConfig';
+import { getDatabase, ref, set } from 'firebase/database';
 
 interface FormData {
   email: string;
@@ -31,8 +32,16 @@ const SignUp: React.FC = () => {
     }
 
     try {
-      await createUserWithEmailAndPassword(auth, formData.email, formData.password);
-      router.replace("/(tabs)/home");
+      const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
+      const userId = userCredential.user.uid;
+
+      const db = getDatabase();
+      await set(ref(db, `users/${userId}`), {
+        email: formData.email,
+        role: "organizer" // Default role
+      });
+
+      router.replace("/organizer/home");
     } catch (error: any) {
       setError(error.message);
     }

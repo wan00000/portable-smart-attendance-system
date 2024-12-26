@@ -180,7 +180,24 @@ export default function Index() {
             if (user) {
                 // await fetchAndFilterSessions();
                 // await processAttendance();
-                router.replace("/(tabs)/home");
+
+                const db = getDatabase();
+                const userRef = ref(db, `users/${user.uid}`);
+                const snapshot = await get(userRef);
+
+                if (snapshot.exists()) {
+                    const userData = snapshot.val();
+                    if (userData.role === "admin") {
+                        router.replace("/(tabs)/home");
+                    } else if (userData.role === "organizer") {
+                        router.replace("/organizer/home");
+                    } else {
+                        router.replace('/(auth)/sign-in'); // Default redirect if no role
+                    }
+                } else {
+                    console.log("User data not found");
+                }
+                // router.replace("/(tabs)/home");
             } else {
                 router.replace('/(auth)/sign-in');
             }

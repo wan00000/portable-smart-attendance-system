@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { ScrollView, View, Dimensions } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { ScrollView, View, Dimensions, RefreshControl } from 'react-native';
 import { Href, router } from 'expo-router';
 import { LineChart } from 'react-native-chart-kit';
 import { Appbar, Button, Card, Menu, Text, useTheme, FAB, Portal, Dialog, Paragraph, ActivityIndicator, Chip, IconButton } from 'react-native-paper';
@@ -70,14 +70,31 @@ const AttendanceScreen = () => {
   const [events, setEvents] = useState<Record<string, Event>>({});
   const [attendanceData, setAttendanceData] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   const toggleMenu = () => setMenuVisible(!menuVisible);
   const showDialog = () => setDialogVisible(true);
   const hideDialog = () => setDialogVisible(false);
 
+  const fetchAttendanceData = async () => {
+      const db = getDatabase();
+      const attendanceRef = ref(db, 'attendance');
+  
+      try {
+        const snapshot = await get(attendanceRef);
+        if (snapshot.exists()) {
+          setAttendanceData(snapshot.val());
+        } else {
+          console.log('No attendance data found.');
+        }
+      } catch (error) {
+        console.error('Error fetching attendance data:', error);
+      }
+    };
+  
 
-  useEffect(() => {
-    const fetchAndFormatEvents = async () => {
+  const fetchData = useCallback(async () => {
+    setLoading(true);
       try {
         const eventsData = await fetchEvents();
         const formattedEvents = Object.fromEntries(
@@ -104,35 +121,25 @@ const AttendanceScreen = () => {
           ])
         );
         setEvents(formattedEvents);
+        await fetchAttendanceData();
       } catch (error) {
         console.error('Error formatting events:', error);
       } finally {
         setLoading(false);
       }
-    };
+    }, []);
 
-    fetchAndFormatEvents();
-  }, []);
+
+
 
   useEffect(() => {
-    const fetchAttendanceData = async () => {
-      const db = getDatabase();
-      const attendanceRef = ref(db, 'attendance');
-  
-      try {
-        const snapshot = await get(attendanceRef);
-        if (snapshot.exists()) {
-          setAttendanceData(snapshot.val());
-        } else {
-          console.log('No attendance data found.');
-        }
-      } catch (error) {
-        console.error('Error fetching attendance data:', error);
-      }
-    };
-  
-    fetchAttendanceData();
-  }, []);
+    fetchData();
+  }, [fetchData]);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchData().finally(() => setRefreshing(false));
+  }, [fetchData]);
 
   if (loading) {
     return (
@@ -197,7 +204,16 @@ const AttendanceScreen = () => {
         <Appbar.Content title="Attendances" />
       </Appbar.Header>
 
-      <ScrollView style={{ flex: 1 }}>
+      <ScrollView 
+      style={{ flex: 1 }}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          colors={[colors.primary]}
+        />
+      }
+      >
 
       <AttendanceGraph />
 

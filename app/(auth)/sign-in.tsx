@@ -1,6 +1,7 @@
 import { auth } from '@/firebaseConfig';
 import { router } from 'expo-router';
 import { signInWithEmailAndPassword } from 'firebase/auth';
+import { get, getDatabase, ref } from 'firebase/database';
 import React, { useState } from 'react';
 import { SafeAreaView, ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Text, TextInput, useTheme } from 'react-native-paper';
@@ -24,8 +25,27 @@ const SignIn: React.FC = () => {
 
   const handleSignIn = async () => {
     try {
-      await signInWithEmailAndPassword(auth, formData.email, formData.password);
-      router.replace("/(tabs)/home");
+      const userCredential = await signInWithEmailAndPassword(auth, formData.email, formData.password);
+      const userId = userCredential.user.uid;
+
+      // Fetch user role
+      const db = getDatabase();
+      const userRef = ref(db, `users/${userId}`);
+      const snapshot = await get(userRef);
+
+      if (snapshot.exists()) {
+        const userData = snapshot.val();
+        if (userData.role === "admin") {
+          router.replace("/(tabs)/home");
+        } else if (userData.role === "organizer") {
+          router.replace("/organizer/home");
+        } else {
+          setError("Unauthorized role");
+        }
+      } else {
+        setError("User data not found");
+      }
+      // router.replace("/(tabs)/home");
     } catch (error: any) {
       setError(error.message);
     }

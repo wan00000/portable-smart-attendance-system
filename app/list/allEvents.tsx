@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { View, SafeAreaView, ScrollView, StyleSheet } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { View, SafeAreaView, ScrollView, StyleSheet, RefreshControl } from 'react-native';
 import { Appbar, Card, useTheme, Text, Button } from 'react-native-paper';
 import { router } from 'expo-router';
 import { ref, onValue, off } from 'firebase/database';
@@ -74,8 +74,9 @@ const CourseCard: React.FC<CourseProps> = ({ id, title, code, sessions, organize
 const AllEvents: React.FC = () => {
   const { colors } = useTheme();
   const [courses, setCourses] = useState<CourseProps[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
+  const fetchCourses = useCallback(() => {
     const eventsRef = ref(db, 'events');
 
     onValue(eventsRef, (snapshot) => {
@@ -99,9 +100,28 @@ const AllEvents: React.FC = () => {
     return () => off(eventsRef);
   }, []);
 
+  useEffect(() => {
+    fetchCourses();
+  }, [fetchCourses]);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchCourses();
+    setRefreshing(false);
+  }, [fetchCourses]);
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.surface }]}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView 
+      contentContainerStyle={styles.scrollContent}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          colors={[colors.primary]}
+        />
+      }
+      >
         {courses.map((course) => (
           <CourseCard key={course.id} {...course} />
         ))}
