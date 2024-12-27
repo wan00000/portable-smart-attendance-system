@@ -44,9 +44,11 @@ const OrganizerSelector: React.FC<{
   availableOrganizers: { id: string; name: string }[];
 }> = ({ organizer, onSelect, availableOrganizers }) => {
   const [expanded, setExpanded] = useState(false);
+  const { colors } = useTheme();
 
   return (
     <List.Accordion
+      style={{ backgroundColor: colors.backdrop }}
       title={organizer || "Select Organizer"}
       expanded={expanded}
       onPress={() => setExpanded(!expanded)}
@@ -58,7 +60,7 @@ const OrganizerSelector: React.FC<{
           title={name}
           onPress={() => {
             onSelect(id, name);
-            setExpanded(false); // Close accordion after selection
+            setExpanded(false);
           }}
         />
       ))}

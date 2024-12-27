@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { SafeAreaView, ScrollView, StyleSheet, View, Alert } from 'react-native';
-import { Appbar, Button, Card, Menu, TextInput, useTheme } from 'react-native-paper';
+import { Appbar, Button, Card, List, Menu, TextInput, useTheme } from 'react-native-paper';
 import { DatePickerInput, enGB, registerTranslation } from 'react-native-paper-dates';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { getDatabase, ref, push, update, onValue } from "firebase/database";
@@ -56,35 +56,28 @@ const SelectCourseMenu: React.FC<{
   onSelect: (courseId: string, courseName: string) => void;
   availableEvents: { id: string; name: string }[];
 }> = ({ course, onSelect, availableEvents }) => {
-  const [visible, setVisible] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const { colors } = useTheme();
   
   return (
-    <Menu
-      visible={visible}
-      onDismiss={() => setVisible(false)}
-      anchor={
-        <Button 
-          onPress={() => setVisible(true)} 
-          mode='outlined'
-          icon='menu-down'
-          contentStyle={{ flexDirection: 'row-reverse' }}
-          style={styles.courseButton}
-        >
-          {course || "Select Event"}
-        </Button>
-      }
+    <List.Accordion
+      style={{ backgroundColor: colors.backdrop }}
+      title={course || "Select Event"}
+      expanded={expanded}
+      onPress={() => setExpanded(!expanded)}
+      left={(props) => <List.Icon {...props} icon="book-outline" />}
     >
       {availableEvents.map(({ id, name }) => (
-        <Menu.Item 
-          key={id} 
+        <List.Item
+          key={id}
+          title={name}
           onPress={() => {
             onSelect(id, name);
-            setVisible(false);
-          }} 
-          title={name} 
+            setExpanded(false); // Close accordion after selection
+          }}
         />
       ))}
-    </Menu>
+    </List.Accordion>
   );
 };
 
