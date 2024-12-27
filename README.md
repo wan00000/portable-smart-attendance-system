@@ -104,7 +104,7 @@ This project is licensed under the [MIT License](LICENSE).
 For any questions or feedback, please contact:
 - **Name**: Wan
 - **GitHub**: [wan00000](https://github.com/wan00000)
-- **Email**: [izwanhusainy02@gmail.com]
+- **Email**: izwanhusainy02@gmail.com
 
 ---
 
