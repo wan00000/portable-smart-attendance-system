@@ -1,50 +1,48 @@
-# Welcome to your Expo app 👋
+# Portable Smart Attendance System
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+The **Portable Smart Attendance System** is an innovative solution designed to simplify and automate attendance management. The system uses RFID technology, paired with a mobile application, to ensure efficient and real-time tracking of attendance. This project integrates hardware and software components, leveraging React Native Expo and Firebase for robust functionality.
 
-## Get started
+## Features
 
-1. Install dependencies
+- **RFID-based Attendance**: Utilize RFID cards for swift and accurate attendance tracking.
+- **Mobile Application**: A user-friendly mobile app built with React Native Expo for on-the-go usage.
+- **Firebase Integration**: Real-time data synchronization using Firebase Realtime Database.
+- **Attendance Management**: Log and manage attendance records instantly.
+- **Session Association**: Link attendance logs to specific sessions or events.
+- **Data Analytics**: Gain insights into attendance patterns for better decision-making.
+- **Portable Sensor**: Compact and portable RFID sensor using ESP32 hardware.
 
+## Project Structure
+
+The project is divided into two main components:
+
+1. **Mobile Application**: 
+   - Developed with TypeScript and React Native Expo.
+   - Features Firebase Authentication for secure user access.
+   - Includes modules for managing classes, sessions, events, and student details.
+   
+2. **Portable RFID Sensor**:
+   - Powered by ESP32 microcontroller.
+   - Reads RFID card data and sends it to the Firebase Realtime Database via Wi-Fi.
+
+## Database Structure
+
+The system uses Firebase Realtime Database for real-time data handling. Key database structures include:
+
+- **students**: Stores student information (e.g., card number, name, matriculation number, phone number).
+- **events**: Manages events and their associated sessions.
+- **activeSessions**: Tracks active event sessions.
+- **attendanceLogs**: Logs timestamps and RFID card data for attendance.
+- **attendance**: Records detailed attendance data including check-in and check-out times.
+
+## Setup Instructions
+
+### Prerequisites
+1. Node.js and npm installed.
+2. Expo CLI installed globally.
+3. Firebase project with Realtime Database configured.
+
+### Mobile Application Setup
+1. Clone this repository:
    ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-    npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
-```
-
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+   git clone https://github.com/wan00000/portable-smart-attendance-system.git
