@@ -6,6 +6,7 @@ import { Appbar, Avatar, Card, Divider, FAB, List, Portal, ProgressBar, Provider
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { get, getDatabase, ref } from 'firebase/database';
 import { useCallback, useEffect, useState } from 'react';
+import { auth } from '@/firebaseConfig';
 
 interface StatCardProps {
   title: string;
@@ -66,10 +67,10 @@ const EventItem: React.FC<EventItemProps> = ({ course, day, time }) => {
         </View>
       )}
       style={styles.listItem}
-      onPress={() => router.push({
-        pathname: '/eventMgmt/detail',
-        params: {}
-      })}
+      // onPress={() => router.push({
+      //   pathname: '/eventMgmt/detail',
+      //   params: {}
+      // })}
     />
   );
 };
@@ -84,6 +85,29 @@ const HomeScreen: React.FC = () => {
   const [totalAbsent, setTotalAbsent] = useState(0);
   const [activeEventCount, setActiveEventCount] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
+  const [profilePicture, setProfilePicture] = useState<string | null>(null);
+
+    // Assume user is already authenticated, fetch UID
+    const userAuth = auth.currentUser;
+    const uid = userAuth?.uid;
+  
+    useEffect(() => {
+        if (uid) {
+            fetchProfilePicture(uid);
+        }
+    }, [uid]);
+  
+    // Function to fetch the profile picture URL from Firebase RLDB
+    const fetchProfilePicture = async (uid: string) => {
+        const db = getDatabase();
+        const userRef = ref(db, `users/${uid}/profilePicture`);
+        const snapshot = await get(userRef);
+        if (snapshot.exists()) {
+            setProfilePicture(snapshot.val());
+        } else {
+            setProfilePicture(null); // No profile picture uploaded
+        }
+    };
 
   const fetchAttendanceData = async () => {
     const db = getDatabase();
@@ -265,7 +289,11 @@ const HomeScreen: React.FC = () => {
             titleStyle={styles.headerTitle}
             title="iDATANG" 
           />
-          <Avatar.Image size={40} source={require('@/assets/images/avatar.png')} style={styles.avatar} />
+          <Avatar.Image 
+          size={40} 
+          source={profilePicture ? { uri: profilePicture } : require("@/assets/images/avatar.png")}
+          style={styles.avatar}
+          />
         </Appbar.Header>
 
         <ScrollView 

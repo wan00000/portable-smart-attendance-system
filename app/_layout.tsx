@@ -40,6 +40,7 @@ export default function RootLayout() {
           <Stack.Screen name="attendance" options={{ headerShown: false }} />
           <Stack.Screen name="organizerMgmt" options={{ headerShown: false }} />
           <Stack.Screen name="organizer" options={{ headerShown: false }} />
+          <Stack.Screen name="profile" options={{ headerShown: false }} />
         </Stack>
       </ThemeProvider>
     </PaperProvider>

@@ -6,6 +6,7 @@ import { router } from 'expo-router';
 import { auth } from '@/firebaseConfig';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { get, getDatabase, ref } from 'firebase/database';
+import { getStorage, ref as storageRef, getDownloadURL } from 'firebase/storage';
 
 interface ProfileOption {
   title: string;
@@ -18,7 +19,30 @@ const ProfileScreen: React.FC = () => {
   const [user, setUser] = useState<any>(null);
   // const [otherUserData, setOtherUserData] = useState<{ email: string; role: string } | null>(null);
   const [users, setUsers] = useState<any[]>([]);
+  const [userName, setUserName] = useState<string | null>(null);
+  const [profilePicture, setProfilePicture] = useState<string | null>(null);
 
+  // Assume user is already authenticated, fetch UID
+  const userAuth = auth.currentUser;
+  const uid = userAuth?.uid;
+
+  useEffect(() => {
+      if (uid) {
+          fetchProfilePicture(uid);
+      }
+  }, [uid]);
+
+  // Function to fetch the profile picture URL from Firebase RLDB
+  const fetchProfilePicture = async (uid: string) => {
+      const db = getDatabase();
+      const userRef = ref(db, `users/${uid}/profilePicture`);
+      const snapshot = await get(userRef);
+      if (snapshot.exists()) {
+          setProfilePicture(snapshot.val());
+      } else {
+          setProfilePicture(null); // No profile picture uploaded
+      }
+  };
 
   useEffect(() => {
     const fetchAllUsers = async () => {
@@ -62,25 +86,32 @@ const ProfileScreen: React.FC = () => {
       if (currentUser) {
         setUser(currentUser);
 
-        // // Fetch other user's email and role
-        // const db = getDatabase();
-        // const otherUserId = "userId_of_other_user"; // Replace with the actual userId
-        // const userRef = ref(db, `users/${otherUserId}`);
-        
-        // try {
-        //   const snapshot = await get(userRef);
-        //   if (snapshot.exists()) {
-        //     const data = snapshot.val();
-        //     setOtherUserData({
-        //       email: data.email,
-        //       role: data.role,
-        //     });
-        //   } else {
-        //     console.error("No data available for the specified user.");
-        //   }
-        // } catch (error) {
-        //   console.error("Error fetching user data:", error);
-        // }
+        // Fetch user name and profile picture
+        const db = getDatabase();
+        const userRef = ref(db, `users/${currentUser.uid}`);
+
+        try {
+          const snapshot = await get(userRef);
+          if (snapshot.exists()) {
+            const data = snapshot.val();
+            setUserName(data.name || 'Anonymous');
+
+            if (data.profilePicture) {
+              // Fetch profile picture URL from Firebase Storage
+              const storage = getStorage();
+              const pictureRef = storageRef(storage, data.profilePicture); // Path to the image file
+              const pictureUrl = await getDownloadURL(pictureRef);
+              setProfilePicture(pictureUrl);
+              console.log('Profile picture successfully fetched:', pictureUrl);
+            } else {
+              setProfilePicture(null);
+            }
+          } else {
+            console.error("User data not found.");
+          }
+        } catch (error) {
+          console.error("Error fetching user data:", error);
+        }
       } else {
         router.replace("/(auth)/sign-in");
       }
@@ -101,7 +132,7 @@ const ProfileScreen: React.FC = () => {
   };
 
   const profileOptions: ProfileOption[] = [
-    { title: "Profile Information", icon: "account-circle", onPress: () => console.log("Profile Information") },
+    { title: "Profile Information", icon: "account-circle", onPress: () => router.push("/profile/update") },
     { title: "Export Data", icon: "export", onPress: () => console.log("Export Data") },
     { title: "Change Password", icon: "lock-reset", onPress: () => console.log("Change Password") },
     { title: "Delete Account", icon: "account-remove", onPress: () => console.log("Delete Account") },
@@ -117,14 +148,14 @@ const ProfileScreen: React.FC = () => {
 
         <Card style={[styles.headerCard, { backgroundColor: "#75b99a" }]}>
           <Card.Title 
-            title="Hi Izwan,"
+            title={`Hi ${userName || 'Loading...'}`}
             subtitle={user?.email || 'Loading...'}
             titleVariant='headlineMedium'
             right={(props) => (
               <Avatar.Image 
                 {...props} 
                 size={50} 
-                source={require("@/assets/images/avatar.png")}
+                source={profilePicture ? { uri: profilePicture } : require("@/assets/images/avatar.png")}
                 style={styles.avatar}
               />
             )}
