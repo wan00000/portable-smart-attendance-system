@@ -345,7 +345,7 @@ const HomeScreen: React.FC = () => {
               },
               {
                 icon: 'book-plus',
-                label: 'Add Event',
+                label: 'Add Eveaads;fkladf;ksadfl;kjfljkdfljfkl;djadflsjdldfl;adfkjl;fdkl;dadfkjldfkjladflsnt',
                 onPress: () => router.push("/eventMgmt/add"),
               },
             ]}
