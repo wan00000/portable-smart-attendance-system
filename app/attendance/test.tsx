@@ -42,20 +42,30 @@ interface RouteParams {
   sessionTime: string;
 }
 
-const StudentList: React.FC<{ data: Student[] }> = ({ data }) => (
-  <DataTable>
-    <DataTable.Header>
-      <DataTable.Title>Name</DataTable.Title>
-      <DataTable.Title numeric>Matric</DataTable.Title>
-    </DataTable.Header>
-    {data.map((student) => (
-      <DataTable.Row key={student.id}>
-        <DataTable.Cell>{student.name}</DataTable.Cell>
-        <DataTable.Cell numeric>{student.matric}</DataTable.Cell>
-      </DataTable.Row>
-    ))}
-  </DataTable>
-);
+const StudentList: React.FC<{ data: Student[] }> = ({ data }) => {
+  if (data.length === 0) {
+    return (
+      <View style={{ padding: 16, alignItems: 'center' }}>
+        <Text style={{ color: 'gray' }}>No data available</Text>
+      </View>
+    );
+  }
+
+  return (
+    <DataTable>
+      <DataTable.Header>
+        <DataTable.Title>Name</DataTable.Title>
+        <DataTable.Title numeric>Matric</DataTable.Title>
+      </DataTable.Header>
+      {data.map((student) => (
+        <DataTable.Row key={student.id}>
+          <DataTable.Cell>{student.name}</DataTable.Cell>
+          <DataTable.Cell numeric>{student.matric}</DataTable.Cell>
+        </DataTable.Row>
+      ))}
+    </DataTable>
+  );
+};
 
 export default function Test() {
   const { colors } = useTheme();

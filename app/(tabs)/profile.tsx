@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, ScrollView } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { View, StyleSheet, ScrollView, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Appbar, Avatar, Card, Divider, List, useTheme } from 'react-native-paper';
 import { router } from 'expo-router';
@@ -21,6 +21,8 @@ const ProfileScreen: React.FC = () => {
   const [users, setUsers] = useState<any[]>([]);
   const [userName, setUserName] = useState<string | null>(null);
   const [profilePicture, setProfilePicture] = useState<string | null>(null);
+
+  const [refreshing, setRefreshing] = useState(false);
 
   // Assume user is already authenticated, fetch UID
   const userAuth = auth.currentUser;
@@ -44,41 +46,26 @@ const ProfileScreen: React.FC = () => {
       }
   };
 
-  useEffect(() => {
-    const fetchAllUsers = async () => {
+    const fetchAllUsers = useCallback(async () => {
       const db = getDatabase();
-      const usersRef = ref(db, 'users'); // Point to the 'users' node
-  
+      const usersRef = ref(db, 'users');
       try {
         const snapshot = await get(usersRef);
         if (snapshot.exists()) {
           const data = snapshot.val();
-          // Extract and log all users' data
-          console.log("All Users:", data);
-  
-          // Example: Transform data into an array for display
           const usersArray = Object.keys(data).map(userId => ({
             id: userId,
             email: data[userId].email,
             role: data[userId].role,
           }));
           setUsers(usersArray);
-  
-          // You can store this array in a state if needed
-          console.log("Formatted Users Array:", usersArray);
         } else {
           console.error("No users found.");
         }
       } catch (error) {
         console.error("Error fetching users:", error);
       }
-    };
-  
-    fetchAllUsers();
-  }, []);
-
-  
-  
+    }, []);
 
   useEffect(() => {
     // Firebase auth state listener
@@ -139,9 +126,26 @@ const ProfileScreen: React.FC = () => {
     { title: "Logout", icon: "logout", onPress: handleSignOut },
   ];
 
+  const fetchData = useCallback(async () => {
+    await Promise.all([fetchAllUsers()]);
+  }, []);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchData().finally(() => setRefreshing(false));
+  }, [fetchData]);
+
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <ScrollView>
+      <ScrollView
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[colors.primary]}
+          />
+              }
+      >
         <Appbar.Header>
           <Appbar.Content title="Profile" mode="large" />
         </Appbar.Header>
