@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, StyleSheet, ScrollView, RefreshControl } from 'react-native';
+import { View, StyleSheet, ScrollView, RefreshControl, Alert, TouchableOpacity, Modal, Text, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Appbar, Avatar, Card, Divider, List, useTheme } from 'react-native-paper';
 import { router } from 'expo-router';
 import { auth } from '@/firebaseConfig';
-import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { get, getDatabase, ref } from 'firebase/database';
+import { deleteUser, EmailAuthProvider, onAuthStateChanged, reauthenticateWithCredential, signOut } from 'firebase/auth';
+import { get, getDatabase, ref, remove } from 'firebase/database';
 import { getStorage, ref as storageRef, getDownloadURL } from 'firebase/storage';
 
 interface ProfileOption {
@@ -14,6 +14,41 @@ interface ProfileOption {
   onPress: () => void;
 }
 
+
+const DeleteAccountModal = ({ visible, onClose, onConfirm }: { 
+  visible: boolean; 
+  onClose: () => void; 
+  onConfirm: (password: string) => void; 
+}) => {
+  const [password, setPassword] = useState("");
+
+  return (
+    <Modal visible={visible} transparent={true} animationType="slide">
+      <View style={styles.modalContainer}>
+        <View style={styles.modalContent}>
+          <Text style={styles.modalTitle}>Confirm Account Deletion</Text>
+          <Text style={styles.modalMessage}>Please enter your password to confirm:</Text>
+          <TextInput
+            secureTextEntry
+            style={styles.textInput}
+            placeholder="Enter password"
+            value={password}
+            onChangeText={setPassword}
+          />
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity onPress={onClose} style={styles.cancelButton}>
+              <Text style={styles.buttonText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => onConfirm(password)} style={styles.confirmButton}>
+              <Text style={styles.buttonText}>Confirm</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
 const ProfileScreen: React.FC = () => {
   const { colors } = useTheme();
   const [user, setUser] = useState<any>(null);
@@ -21,6 +56,7 @@ const ProfileScreen: React.FC = () => {
   const [users, setUsers] = useState<any[]>([]);
   const [userName, setUserName] = useState<string | null>(null);
   const [profilePicture, setProfilePicture] = useState<string | null>(null);
+  const [isModalVisible, setModalVisible] = useState(false);
 
   const [refreshing, setRefreshing] = useState(false);
 
@@ -109,6 +145,32 @@ const ProfileScreen: React.FC = () => {
     };
   }, []);
 
+  const handleDeleteAccount = async (password: string) => {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    try {
+      const credential = EmailAuthProvider.credential(user.email || "", password);
+      await reauthenticateWithCredential(user, credential);
+
+      const db = getDatabase();
+      const userRef = ref(db, `users/${user.uid}`);
+      await remove(userRef);
+
+      await deleteUser(user);
+
+      Alert.alert("Success", "Your account has been deleted.");
+      router.replace("/(auth)/sign-in");
+    } catch (error: any) {
+      console.error("Error deleting account:", error);
+      if (error.code === "auth/wrong-password") {
+        Alert.alert("Error", "Incorrect password. Please try again.");
+      } else {
+        Alert.alert("Error", "An error occurred while deleting your account.");
+      }
+    }
+  };
+
   const handleSignOut = async () => {
     try {
       await signOut(auth);
@@ -122,7 +184,7 @@ const ProfileScreen: React.FC = () => {
     { title: "Profile Information", icon: "account-circle", onPress: () => router.push("/profile/update") },
     { title: "Export Data", icon: "export", onPress: () => console.log("Export Data") },
     { title: "Change Password", icon: "lock-reset", onPress: () => router.push("/profile/changePassword") },
-    { title: "Delete Account", icon: "account-remove", onPress: () => console.log("Delete Account") },
+    { title: "Delete Account", icon: "account-remove", onPress: () => setModalVisible(true) },
     { title: "Logout", icon: "logout", onPress: handleSignOut },
   ];
 
@@ -196,6 +258,15 @@ const ProfileScreen: React.FC = () => {
           ))}
         </Card>
       </ScrollView>
+
+      <DeleteAccountModal
+        visible={isModalVisible}
+        onClose={() => setModalVisible(false)}
+        onConfirm={(password) => {
+          setModalVisible(false);
+          handleDeleteAccount(password);
+        }}
+      />
     </SafeAreaView>
   );
 };
@@ -217,6 +288,61 @@ const styles = StyleSheet.create({
   },
   listItem: {
     paddingVertical: 8,
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+  },
+  modalContent: {
+    width: 300,
+    padding: 20,
+    backgroundColor: "white",
+    borderRadius: 10,
+    alignItems: "center",
+  },
+  buttonContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    width: "100%",
+  },
+  cancelButton: {
+    flex: 1,
+    marginRight: 5,
+    padding: 10,
+    backgroundColor: "#ccc",
+    borderRadius: 5,
+    alignItems: "center",
+  },
+  confirmButton: {
+    flex: 1,
+    marginLeft: 5,
+    padding: 10,
+    backgroundColor: "#f44336",
+    borderRadius: 5,
+    alignItems: "center",
+  },
+  buttonText: {
+    color: "white",
+    fontWeight: "bold",
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 10,
+  },
+  modalMessage: {
+    fontSize: 14,
+    marginBottom: 20,
+  },
+  textInput: {
+    width: "100%",
+    padding: 10,
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 5,
+    marginBottom: 20,
   },
 });
 
