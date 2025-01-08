@@ -121,7 +121,7 @@ const ProfileScreen: React.FC = () => {
   const profileOptions: ProfileOption[] = [
     { title: "Profile Information", icon: "account-circle", onPress: () => router.push("/profile/update") },
     { title: "Export Data", icon: "export", onPress: () => console.log("Export Data") },
-    { title: "Change Password", icon: "lock-reset", onPress: () => console.log("Change Password") },
+    { title: "Change Password", icon: "lock-reset", onPress: () => router.push("/profile/changePassword") },
     { title: "Delete Account", icon: "account-remove", onPress: () => console.log("Delete Account") },
     { title: "Logout", icon: "logout", onPress: handleSignOut },
   ];
