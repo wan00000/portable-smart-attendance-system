@@ -4,7 +4,8 @@ import { signInWithEmailAndPassword } from 'firebase/auth';
 import { get, getDatabase, ref } from 'firebase/database';
 import React, { useState } from 'react';
 import { SafeAreaView, ScrollView, StyleSheet, View } from 'react-native';
-import { Button, Text, TextInput, useTheme } from 'react-native-paper';
+import { Button, Card, Divider, Text, TextInput, useTheme } from 'react-native-paper';
+import { Ionicons } from '@expo/vector-icons';
 
 interface FormData {
   email: string;
@@ -18,12 +19,15 @@ const SignIn: React.FC = () => {
     password: "",
   });
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
 
   const handleInputChange = (key: keyof FormData, value: string) => {
     setFormData(prev => ({ ...prev, [key]: value }));
   };
 
   const handleSignIn = async () => {
+    setLoading(true);
+    setError(null);
     try {
       const userCredential = await signInWithEmailAndPassword(auth, formData.email, formData.password);
       const userId = userCredential.user.uid;
@@ -45,49 +49,64 @@ const SignIn: React.FC = () => {
       } else {
         setError("User data not found");
       }
-      // router.replace("/(tabs)/home");
     } catch (error: any) {
       setError(error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.title}>Sign In</Text>
-        <TextInput
-          style={styles.input}
-          mode="outlined"
-          label="Email"
-          placeholder='Enter your email'
-          value={formData.email}
-          onChangeText={(text) => handleInputChange('email', text)}
-          keyboardType='email-address'
-          autoCapitalize='none'
-        />
-        <TextInput
-          style={styles.input}
-          mode="outlined"
-          label="Password"
-          placeholder='Enter your password'
-          value={formData.password}
-          onChangeText={(text) => handleInputChange('password', text)}
-          secureTextEntry
-        />
+        <Card style={styles.card}>
+          <Card.Content>
+            <Text variant="headlineMedium" style={styles.title}>Welcome Back</Text>
+            <TextInput
+              style={styles.input}
+              mode="outlined"
+              label="Email"
+              placeholder='Enter your email'
+              value={formData.email}
+              onChangeText={(text) => handleInputChange('email', text)}
+              keyboardType='email-address'
+              autoCapitalize='none'
+              left={<TextInput.Icon icon="email" />}
+            />
+            <TextInput
+              style={styles.input}
+              mode="outlined"
+              label="Password"
+              placeholder='Enter your password'
+              value={formData.password}
+              onChangeText={(text) => handleInputChange('password', text)}
+              secureTextEntry
+              left={<TextInput.Icon icon="lock" />}
+            />
 
-        {error && <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>}
+            {error && (
+              <Text style={[styles.errorText, { color: colors.error }]}>
+                <Ionicons name="alert-circle" size={16} color={colors.error} /> {error}
+              </Text>
+            )}
 
-        <Button 
-          mode="contained" 
-          onPress={handleSignIn} 
-          style={styles.button}
-        >
-          Sign In
-        </Button>
+            <Button 
+              mode="contained" 
+              onPress={handleSignIn} 
+              style={styles.button}
+              loading={loading}
+              disabled={loading}
+            >
+              Sign In
+            </Button>
 
-        <Text style={styles.linkText} onPress={() => router.push('/(auth)/sign-up')}>
-          Don't have an account? Sign Up
-        </Text>
+            <Divider style={styles.divider} />
+
+            <Text style={styles.linkText} onPress={() => router.push('/(auth)/sign-up')}>
+              Don't have an account? Sign Up
+            </Text>
+          </Card.Content>
+        </Card>
       </ScrollView>
     </SafeAreaView>
   );
@@ -102,8 +121,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 16,
   },
+  card: {
+    elevation: 4,
+    borderRadius: 8,
+  },
   title: {
-    fontSize: 24,
     fontWeight: 'bold',
     marginBottom: 24,
     textAlign: 'center',
@@ -116,7 +138,11 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   button: {
+    marginTop: 16,
     marginBottom: 16,
+  },
+  divider: {
+    marginVertical: 16,
   },
   linkText: {
     textAlign: 'center',
@@ -124,3 +150,4 @@ const styles = StyleSheet.create({
 });
 
 export default SignIn;
+
