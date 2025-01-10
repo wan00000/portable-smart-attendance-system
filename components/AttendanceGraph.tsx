@@ -1,49 +1,40 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Dimensions } from 'react-native';
 import { Card, Text, Button, useTheme } from 'react-native-paper';
-import { LineChart } from 'react-native-chart-kit';
-import { Dimensions } from 'react-native';
+import { Svg, Line, Circle, Text as SvgText } from 'react-native-svg';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { getDatabase, ref, get, query, orderByKey, limitToLast } from 'firebase/database';
+import { GraphType, AttendanceData, ProcessedData } from './types';
+import { processAttendanceData } from './processAttendanceData';
 
-type GraphType = 'percentage' | 'present' | 'absent';
-interface AttendanceRecord {
-  attendancePercentage: number;
-  actualStatus: 'present' | 'absent';
-}
-interface DayAttendance {
-  [sessionId: string]: { [studentId: string]: AttendanceRecord };
-}
-interface AttendanceData {
-  [day: string]: DayAttendance;
-}
-
-const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const CHART_WIDTH = Dimensions.get('window').width - 64;
+const CHART_HEIGHT = 220;
+const CHART_PADDING = 20;
 
 const AttendanceGraph: React.FC = () => {
   const { colors } = useTheme();
-  const screenWidth = Dimensions.get('window').width;
   const [selectedGraph, setSelectedGraph] = useState<GraphType>('percentage');
-  const [graphData, setGraphData] = useState({
-    percentage: Array(DAYS.length).fill(0),
-    present: Array(DAYS.length).fill(0),
-    absent: Array(DAYS.length).fill(0),
-  });
-
-  const chartConfig = useMemo(() => ({
-    backgroundColor: colors.surface,
-    backgroundGradientFrom: colors.surface,
-    backgroundGradientTo: colors.surfaceVariant,
-    decimalPlaces: 1,
-    color: () => colors.primary,
-    labelColor: () => colors.onSurface,
-    style: { borderRadius: 16 },
-    propsForDots: {
-      r: '6',
-      strokeWidth: '2',
-      stroke: colors.primaryContainer,
+  const [graphData, setGraphData] = useState<{[key in GraphType]: ProcessedData}>({
+    percentage: {
+      percentage: Array(7).fill(0),
+      present: Array(7).fill(0),
+      absent: Array(7).fill(0),
+      eventCounts: Array(7).fill(0),
     },
-  }), [colors]);
+    present: {
+      percentage: Array(7).fill(0),
+      present: Array(7).fill(0),
+      absent: Array(7).fill(0),
+      eventCounts: Array(7).fill(0),
+    },
+    absent: {
+      percentage: Array(7).fill(0),
+      present: Array(7).fill(0),
+      absent: Array(7).fill(0),
+      eventCounts: Array(7).fill(0),
+    },
+  });
 
   useEffect(() => {
     const fetchAttendanceData = async () => {
@@ -54,38 +45,14 @@ const AttendanceGraph: React.FC = () => {
       const snapshot = await get(lastWeekQuery);
       if (snapshot.exists()) {
         const data: AttendanceData = snapshot.val();
-        const percentageData: number[] = [];
-        const presentData: number[] = [];
-        const absentData: number[] = [];
-
-        for (const day of Object.keys(data)) {
-          let totalPercentage = 0;
-          let presentCount = 0;
-          let absentCount = 0;
-          let totalStudents = 0;
-
-          for (const sessionId of Object.keys(data[day])) {
-            const session = data[day][sessionId];
-            totalStudents += Object.keys(session).length;
-
-            for (const studentId of Object.keys(session)) {
-              const record = session[studentId];
-              totalPercentage += record.attendancePercentage || 0;
-              if (record.actualStatus === 'present') presentCount++;
-              if (record.actualStatus === 'absent') absentCount++;
-            }
-          }
-
-          percentageData.push(totalStudents ? totalPercentage / totalStudents : 0);
-          presentData.push(presentCount);
-          absentData.push(absentCount);
-        }
-
+        console.log("Raw Attendance Data:", JSON.stringify(data, null, 2));
         setGraphData({
-          percentage: percentageData,
-          present: presentData,
-          absent: absentData,
+          percentage: processAttendanceData(data),
+          present: processAttendanceData(data),
+          absent: processAttendanceData(data),
         });
+      } else {
+        console.warn("No attendance data found in Firebase.");
       }
     };
 
@@ -105,6 +72,93 @@ const AttendanceGraph: React.FC = () => {
     </Button>
   );
 
+  const chartData = useMemo(() => {
+    const data = graphData[selectedGraph][selectedGraph];
+    const maxValue = Math.max(...data);
+    const minValue = Math.min(...data);
+    const range = maxValue > minValue ? maxValue - minValue : 1;
+
+    return data.map((value, index) => ({
+      x: (CHART_WIDTH - CHART_PADDING * 2) / (DAYS.length - 1) * index + CHART_PADDING,
+      y: CHART_HEIGHT - CHART_PADDING - ((value - minValue) / range) * (CHART_HEIGHT - CHART_PADDING * 2),
+      value,
+      hasEvent: graphData[selectedGraph].eventCounts[index] > 0,
+    }));
+  }, [graphData, selectedGraph]);
+
+  const renderChart = () => {
+    const validPoints = chartData.filter(point => point.hasEvent);
+    return (
+      <Svg width={CHART_WIDTH} height={CHART_HEIGHT}>
+        <Line
+          x1={CHART_PADDING}
+          y1={CHART_HEIGHT - CHART_PADDING}
+          x2={CHART_WIDTH - CHART_PADDING}
+          y2={CHART_HEIGHT - CHART_PADDING}
+          stroke={colors.onSurface}
+          strokeWidth="1"
+        />
+        <Line
+          x1={CHART_PADDING}
+          y1={CHART_PADDING}
+          x2={CHART_PADDING}
+          y2={CHART_HEIGHT - CHART_PADDING}
+          stroke={colors.onSurface}
+          strokeWidth="1"
+        />
+        {validPoints.map((point, index) => (
+          <React.Fragment key={index}>
+            {index > 0 && (
+              <Line
+                x1={validPoints[index - 1].x}
+                y1={validPoints[index - 1].y}
+                x2={point.x}
+                y2={point.y}
+                stroke={colors.primary}
+                strokeWidth="2"
+              />
+            )}
+            <Circle
+              cx={point.x}
+              cy={point.y}
+              r="4"
+              fill={colors.primaryContainer}
+              stroke={colors.primary}
+              strokeWidth="2"
+            />
+            <SvgText
+              x={point.x}
+              y={point.y - 10}
+              fontSize="10"
+              fill={colors.onSurface}
+              textAnchor="middle"
+            >
+              {selectedGraph === 'percentage' ? `${point.value.toFixed(1)}%` : point.value}
+            </SvgText>
+          </React.Fragment>
+        ))}
+        {chartData.map((point, index) => (
+          <SvgText
+            key={`label-${index}`}
+            x={point.x}
+            y={CHART_HEIGHT - CHART_PADDING + 15}
+            fontSize="10"
+            fill={colors.onSurface}
+            textAnchor="middle"
+          >
+            {DAYS[index]}
+          </SvgText>
+        ))}
+      </Svg>
+    );
+  };
+
+  const calculateWeeklyAverage = () => {
+    const data = graphData[selectedGraph][selectedGraph];
+    const nonZeroValues = data.filter((v, i) => graphData[selectedGraph].eventCounts[i] > 0);
+    return nonZeroValues.length > 0 ? nonZeroValues.reduce((a, b) => a + b, 0) / nonZeroValues.length : 0;
+  };
+
   return (
     <Card style={styles.card}>
       <Card.Title
@@ -120,20 +174,9 @@ const AttendanceGraph: React.FC = () => {
         <Text style={styles.graphTitle}>
           {selectedGraph.charAt(0).toUpperCase() + selectedGraph.slice(1)} Trends
         </Text>
-        <LineChart
-          data={{
-            labels: DAYS,
-            datasets: [{ data: graphData[selectedGraph] }],
-          }}
-          width={screenWidth - 64}
-          height={220}
-          yAxisSuffix={selectedGraph === 'percentage' ? '%' : ''}
-          chartConfig={chartConfig}
-          bezier
-          style={styles.chart}
-        />
+        {renderChart()}
         <Text style={styles.averageText}>
-          Weekly Average: {(graphData[selectedGraph].reduce((a, b) => a + b, 0) / DAYS.length).toFixed(2)}
+          Weekly Average: {calculateWeeklyAverage().toFixed(2)}
           {selectedGraph === 'percentage' ? '%' : ''}
         </Text>
       </Card.Content>
@@ -147,7 +190,6 @@ const styles = StyleSheet.create({
   button: { flex: 1, marginHorizontal: 4 },
   buttonLabel: { fontSize: 12 },
   graphTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 8, textAlign: 'center' },
-  chart: { marginVertical: 8, borderRadius: 16 },
   averageText: { fontSize: 14, fontStyle: 'italic', textAlign: 'center', marginTop: 8 },
 });
 
