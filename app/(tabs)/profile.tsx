@@ -199,6 +199,9 @@ const ProfileScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
+      <Appbar.Header>
+        <Appbar.Content title="Profile" mode="large" />
+      </Appbar.Header>
       <ScrollView
         refreshControl={
           <RefreshControl
@@ -208,10 +211,6 @@ const ProfileScreen: React.FC = () => {
           />
               }
       >
-        <Appbar.Header>
-          <Appbar.Content title="Profile" mode="large" />
-        </Appbar.Header>
-
         <Card style={[styles.headerCard, { backgroundColor: "#75b99a" }]}>
           <Card.Title 
             title={`Hi ${userName || 'Loading...'}`}

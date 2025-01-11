@@ -135,17 +135,22 @@ export const processAttendance = onValueCreated(
   async (event) => {
     try {
       const db = getDatabase();
-      // Extract log data
       const logData = event.data.val();
       const uid: string = logData?.uid;
       const timestamp: string = logData?.timestamp;
 
+      logger.info("Processing attendance log...");
+
+      // Validate log data
       if (!uid || !timestamp) {
-        logger.error("Invalid attendance log data");
+        logger.error("Invalid attendance log data: Missing UID or timestamp");
         return;
       }
+      logger.info(`Attendance log received:
+        UID=${uid}, Timestamp=${timestamp}`);
 
-      // Fetch necessary data in parallel
+      // Fetch students and active sessions data
+      logger.info("Fetching students and active sessions data...");
       const [studentsSnap, activeSessionsSnap] = await Promise.all([
         db.ref("/students").get(),
         db.ref("/activeSessions").get(),
@@ -154,71 +159,130 @@ export const processAttendance = onValueCreated(
       const students = studentsSnap.val();
       const activeSessions = activeSessionsSnap.val();
 
-      if (!students || !activeSessions) {
-        logger.error("Failed to fetch required data");
+      if (!students) {
+        logger.error("No students data found in database");
         return;
       }
+      if (!activeSessions) {
+        logger.error("No active sessions data found in database");
+        return;
+      }
+      logger.info("Students and active sessions data successfully fetched");
 
       // Match UID to student's cardNo
+      logger.info(`Looking for a student with cardNo matching UID=${uid}...`);
       const studentEntry = Object.entries(students).find(
-        ([, studentData]: any) => studentData.cardNo === uid);
+        ([, studentData]: any) => studentData.cardNo === uid
+      );
       if (!studentEntry) {
-        logger.warn(`No student found with cardNo matching UID: ${uid}`);
+        logger.warn(`No student found with cardNo matching UID=${uid}`);
         return;
       }
 
       const [studentId, studentData]: [string, any] = studentEntry;
+      logger.info(
+        `Student found: ID=${studentId}, Name=${studentData.firstName}`
+      );
 
-      // Find active session
-      const activeSessionEntry = Object.entries(
-        activeSessions).find(([, sessionData]: any) => {
-        return Object.values(sessionData).some((session: any) => {
-          return session.eventName && session.sessionDetails;
-        });
-      });
+      // Determine the active session
+      logger.info("Searching for an active session matching the timestamp...");
+      let activeSessionId: string | null = null;
+      let sessionKey: string | null = null;
+      let sessionData: any = null;
 
-      if (!activeSessionEntry) {
-        logger.warn("No active session found");
+      // Iterate over activeSessions and nested session keys
+      for (const [eventId, sessions] of Object.entries(
+        activeSessions as Record<string, Record<string, any>>
+      )) {
+        for (const [key, session] of Object.entries(sessions)) {
+          const {startTime, endTime} = session.sessionDetails;
+          if (timestamp >= startTime && timestamp <= endTime) {
+            activeSessionId = eventId;
+            sessionKey = key;
+            sessionData = session;
+            break;
+          }
+        }
+        if (sessionKey) break;
+      }
+
+      if (!activeSessionId || !sessionKey) {
+        logger.warn(
+          `No active session found matching the timestamp ${timestamp}`
+        );
         return;
       }
 
-      const [sessionId]: [string, any] = activeSessionEntry;
+      logger.info(
+        `Active session found: SessionKey=${sessionKey},
+        EventName=${sessionData.eventName}`
+      );
+
+      // Check if student is enrolled in the session's event
       const enrolledEvents = studentData.enrolledEvents;
+      logger.info(
+        `Checking if student ${studentId} is
+        enrolled in event ${activeSessionId}...`
+      );
+      const isEnrolled = Object.keys(enrolledEvents).some(
+        (event) => event === activeSessionId
+      );
 
-      // Check if student is enrolled in this event
-      const eventKey = Object.keys(
-        enrolledEvents).find((event) => event === sessionId);
-      if (!eventKey) {
-        logger.warn(`Student ${studentId} not enrolled in event ${sessionId}`);
+      if (!isEnrolled) {
+        logger.warn(
+          `Student ${studentId} is not enrolled in event ${activeSessionId}`
+        );
         return;
       }
+      logger.info(
+        `Student ${studentId} is enrolled in event ${activeSessionId}`
+      );
 
-      // Record attendance for the session
+      // Record attendance
       const attendanceRef: Reference = db.ref(
-        `/attendance/${sessionId}/${sessionId}-session-0/${studentId}`);
+        `/attendance/${activeSessionId}/${sessionKey}/${studentId}`
+      );
+
+      logger.info(`Fetching attendance record for student ${studentId}...`);
       const attendanceSnap = await attendanceRef.get();
 
       if (!attendanceSnap.exists()) {
-        // First detection: Add check-in time
+        logger.info(
+          `No previous attendance record found for
+          student ${studentId} in session ${sessionKey}`
+        );
+        logger.info(
+          `Recording check-in time:
+          StudentID=${studentId}, Timestamp=${timestamp}`
+        );
         await attendanceRef.set({
           checkInTime: timestamp,
-          // status: "CheckedIn",
         });
-        logger.info(`Check-in recorded
-          for student ${studentId} at ${timestamp}`);
+        logger.info(
+          `Check-in successfully recorded for student ${studentId}`
+        );
       } else {
-        // Second detection: Mark as Present
+        logger.info(
+          `Existing attendance record found for
+          student ${studentId} in session ${sessionKey}`
+        );
+        logger.info(
+          `Recording check-out time:
+          StudentID=${studentId}, Timestamp=${timestamp}`
+        );
         await attendanceRef.update({
           checkOutTime: timestamp,
-          // status: "Present",
         });
-        logger.info(`Check-out recorded for student ${studentId}`);
+        logger.info(
+          `Check-out successfully recorded for student ${studentId}`
+        );
       }
     } catch (error) {
-      logger.error("Error processing attendance: ", error);
+      logger.error("Error processing attendance:", error);
     }
   }
 );
+
 
 export const handleCheckIn = onValueCreated(
   {
