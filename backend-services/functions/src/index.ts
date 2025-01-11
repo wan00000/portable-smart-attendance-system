@@ -8,7 +8,6 @@ import {getDatabase, Reference} from "firebase-admin/database";
 // Initialize Firebase Admin SDK
 initializeApp();
 
-
 interface EventSession {
   startTime: string;
   endTime: string;
@@ -128,8 +127,6 @@ export const fetchAndFilterSessions = onSchedule(
   }
 );
 
-
-// Define Attendance Log Trigger
 export const processAttendance = onValueCreated(
   {
     ref: "attendanceLogs/{logId}",

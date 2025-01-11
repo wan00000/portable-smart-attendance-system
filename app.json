@@ -8,9 +8,9 @@
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
     "splash": {
-      "image": "./assets/images/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "image": "assets/images/idatang splash.png",
+      "resizeMode": "cover",
+      "backgroundColor": "#503259"
     },
     "ios": {
       "supportsTablet": true,

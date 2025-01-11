@@ -24,7 +24,6 @@ const BottomTabs = () => {
     profile: ProfileScreen,
     scan: AttendanceScreen,
   });
-  
 
   return (
     <BottomNavigation
