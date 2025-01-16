@@ -20,6 +20,7 @@ const SignIn: React.FC = () => {
   });
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
+  const [passwordVisible, setPasswordVisible] = useState(false);
 
   const handleInputChange = (key: keyof FormData, value: string) => {
     setFormData(prev => ({ ...prev, [key]: value }));
@@ -28,6 +29,13 @@ const SignIn: React.FC = () => {
   const handleSignIn = async () => {
     setLoading(true);
     setError(null);
+
+    if (formData.password.length < 8) {
+      setError("Password must be at least 8 characters long.");
+      setLoading(false);
+      return;
+    }
+
     try {
       const userCredential = await signInWithEmailAndPassword(auth, formData.email, formData.password);
       const userId = userCredential.user.uid;
@@ -43,6 +51,8 @@ const SignIn: React.FC = () => {
           router.replace("/(tabs)/home");
         } else if (userData.role === "organizer") {
           router.replace("/organizer/home");
+        } else if (userData.role === "student") {
+          router.replace("/student/home");
         } else {
           setError("Unauthorized role");
         }
@@ -80,8 +90,14 @@ const SignIn: React.FC = () => {
               placeholder='Enter your password'
               value={formData.password}
               onChangeText={(text) => handleInputChange('password', text)}
-              secureTextEntry
+              secureTextEntry={!passwordVisible}
               left={<TextInput.Icon icon="lock" />}
+              right={
+                <TextInput.Icon
+                  icon={passwordVisible ? "eye-off" : "eye"}
+                  onPress={() => setPasswordVisible(!passwordVisible)}
+                />
+              }
             />
 
             {error && (

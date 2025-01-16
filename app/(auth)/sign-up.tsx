@@ -27,6 +27,8 @@ const SignUp: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
+  const [passwordVisible, setPasswordVisible] = useState(false);
+  const [confirmPasswordVisible, setConfirmPasswordVisible] = useState(false);
 
   const handleInputChange = (key: keyof FormData, value: string) => {
     setFormData(prev => ({ ...prev, [key]: value }));
@@ -35,6 +37,11 @@ const SignUp: React.FC = () => {
   const handleSignUp = async () => {
     if (formData.password !== formData.confirmPassword) {
       setError("Passwords do not match");
+      return;
+    }
+
+    if (formData.password.length < 8) {
+      setError("Password must be at least 8 characters long.");
       return;
     }
 
@@ -56,6 +63,8 @@ const SignUp: React.FC = () => {
         router.replace('/(tabs)/home');
       } else if (formData.role === 'organizer') {
         router.replace('/organizer/home');
+      } else if (formData.role === 'student') {
+        router.replace('/student/home');
       } else {
         setError('Invalid role selected');
       }
@@ -99,8 +108,14 @@ const SignUp: React.FC = () => {
               placeholder='Enter your password'
               value={formData.password}
               onChangeText={(text) => handleInputChange('password', text)}
-              secureTextEntry
+              secureTextEntry={!passwordVisible}
               left={<TextInput.Icon icon="lock" />}
+              right={
+                <TextInput.Icon
+                  icon={passwordVisible ? "eye-off" : "eye"}
+                  onPress={() => setPasswordVisible(!passwordVisible)}
+                />
+              }
             />
             <TextInput
               style={styles.input}
@@ -109,8 +124,14 @@ const SignUp: React.FC = () => {
               placeholder='Confirm your password'
               value={formData.confirmPassword}
               onChangeText={(text) => handleInputChange('confirmPassword', text)}
-              secureTextEntry
+              secureTextEntry={!confirmPasswordVisible}
               left={<TextInput.Icon icon="lock-check" />}
+              right={
+                <TextInput.Icon
+                  icon={confirmPasswordVisible ? "eye-off" : "eye"}
+                  onPress={() => setConfirmPasswordVisible(!confirmPasswordVisible)}
+                />
+              }
             />
 
             <List.Accordion
