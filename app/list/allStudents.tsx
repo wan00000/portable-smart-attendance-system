@@ -45,8 +45,7 @@ export default function AllStudents() {
   }, []);
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.surface }]}>
-      <ScrollView>
+      <ScrollView style={[styles.container, { backgroundColor: colors.surface }]}>
         <Card style={styles.card}>
           <Card.Title title="List of Students" />
           <Card.Content style={[styles.innerCard, { backgroundColor: colors.elevation.level2 }]}>
@@ -59,7 +58,6 @@ export default function AllStudents() {
           </Card.Content>
         </Card>
       </ScrollView>
-    </SafeAreaView>
   );
 }
 

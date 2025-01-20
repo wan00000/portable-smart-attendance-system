@@ -1,6 +1,6 @@
 import { onValue, ref } from 'firebase/database';
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, FlatList } from 'react-native';
+import { StyleSheet, FlatList, ScrollView } from 'react-native';
 import { Card, Divider, List, useTheme, Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { db } from '../../firebaseConfig';
@@ -46,19 +46,20 @@ export default function AllTeachers() {
   }, []);
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      <Card style={styles.card}>
-        <Card.Title title="List of Organizers" />
-        <Card.Content style={[styles.innerCard, { backgroundColor: colors.elevation.level2 }]}>
-          <FlatList
-            data={organizers}
-            renderItem={({ item }) => <TeacherItem teacher={item} />}
-            keyExtractor={(item) => item.id}
-            ListEmptyComponent={<Text style={styles.emptyText}>No organizers found.</Text>}
-          />
-        </Card.Content>
-      </Card>
-    </SafeAreaView>
+      <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
+        <Card style={styles.card}>
+          <Card.Title title="List of Organizers" />
+          <Card.Content style={[styles.innerCard, { backgroundColor: colors.elevation.level2 }]}>
+            <FlatList
+              data={organizers}
+              renderItem={({ item }) => <TeacherItem teacher={item} />}
+              keyExtractor={(item) => item.id}
+              ListEmptyComponent={<Text style={styles.emptyText}>No organizers found.</Text>}
+              scrollEnabled={false}
+              />
+          </Card.Content>
+        </Card>
+    </ScrollView>
   );
 }
 
