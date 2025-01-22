@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, StyleSheet, ScrollView, RefreshControl, Alert, TouchableOpacity, Modal, Text, TextInput } from 'react-native';
+import { View, StyleSheet, ScrollView, RefreshControl, Alert, TouchableOpacity, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Appbar, Avatar, Card, Divider, List, useTheme } from 'react-native-paper';
+import { Appbar, Avatar, Card, Divider, List, useTheme, TextInput, Text } from 'react-native-paper';
 import { router } from 'expo-router';
 import { auth } from '@/firebaseConfig';
 import { deleteUser, EmailAuthProvider, onAuthStateChanged, reauthenticateWithCredential, signOut } from 'firebase/auth';
@@ -21,25 +21,27 @@ const DeleteAccountModal = ({ visible, onClose, onConfirm }: {
   onConfirm: (password: string) => void; 
 }) => {
   const [password, setPassword] = useState("");
+  const { colors } = useTheme();
 
   return (
     <Modal visible={visible} transparent={true} animationType="slide">
-      <View style={styles.modalContainer}>
-        <View style={styles.modalContent}>
+      <View style={styles.modalOverlay}>
+        <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
           <Text style={styles.modalTitle}>Confirm Account Deletion</Text>
           <Text style={styles.modalMessage}>Please enter your password to confirm:</Text>
           <TextInput
             secureTextEntry
-            style={styles.textInput}
+            mode='outlined'
             placeholder="Enter password"
             value={password}
             onChangeText={setPassword}
+            style={styles.textInput}
           />
           <View style={styles.buttonContainer}>
-            <TouchableOpacity onPress={onClose} style={styles.cancelButton}>
-              <Text style={styles.buttonText}>Cancel</Text>
+            <TouchableOpacity onPress={onClose} style={[styles.button, styles.cancelButton, { backgroundColor: colors.surface }]}>
+              <Text style={[styles.buttonText, { color: colors.primary }]}>Cancel</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => onConfirm(password)} style={styles.confirmButton}>
+            <TouchableOpacity onPress={() => onConfirm(password)} style={[styles.button, styles.confirmButton, { backgroundColor: colors.error }]}>
               <Text style={styles.buttonText}>Confirm</Text>
             </TouchableOpacity>
           </View>
@@ -182,7 +184,7 @@ const ProfileScreen: React.FC = () => {
 
   const profileOptions: ProfileOption[] = [
     { title: "Profile Information", icon: "account-circle", onPress: () => router.push("/profile/update") },
-    { title: "Export Data", icon: "export", onPress: () => console.log("Export Data") },
+    { title: "Export Data", icon: "export", onPress: () => router.push("/attendance/export") },
     { title: "Change Password", icon: "lock-reset", onPress: () => router.push("/profile/changePassword") },
     { title: "Delete Account", icon: "account-remove", onPress: () => setModalVisible(true) },
     { title: "Logout", icon: "logout", onPress: handleSignOut },
@@ -227,7 +229,7 @@ const ProfileScreen: React.FC = () => {
           />
         </Card>
 
-        <Card style={styles.optionsCard}>
+        {/* <Card style={styles.optionsCard}>
           {users.map((user) => (
             <React.Fragment key={user.id}>
               <List.Item
@@ -238,7 +240,7 @@ const ProfileScreen: React.FC = () => {
               <Divider />
             </React.Fragment>
           ))}
-        </Card>
+        </Card> */}
 
 
 
@@ -295,9 +297,8 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0, 0, 0, 0.5)",
   },
   modalContent: {
-    width: 300,
+    width: "90%",
     padding: 20,
-    backgroundColor: "white",
     borderRadius: 10,
     alignItems: "center",
   },
@@ -327,21 +328,42 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: "bold",
     marginBottom: 10,
   },
-  modalMessage: {
-    fontSize: 14,
-    marginBottom: 20,
+  // modalMessage: {
+  //   fontSize: 14,
+  //   marginBottom: 20,
+  // },
+  // textInput: {
+  //   width: "100%",
+  //   padding: 10,
+  //   borderWidth: 1,
+  //   borderColor: "#ccc",
+  //   borderRadius: 5,
+  //   marginBottom: 20,
+  // },
+  button: {
+    flex: 1,
+    padding: 10,
+    borderRadius: 5,
+    alignItems: "center",
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
   },
   textInput: {
     width: "100%",
-    padding: 10,
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 5,
     marginBottom: 20,
+  },
+  modalMessage: {
+    fontSize: 16,
+    marginBottom: 20,
+    textAlign: "center",
   },
 });
 
