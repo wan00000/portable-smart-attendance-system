@@ -283,7 +283,6 @@ export const processAttendance = onValueCreated(
   }
 );
 
-
 export const handleCheckIn = onValueCreated(
   {
     ref: "attendance/{eventId}/{sessionId}/{studentId}/checkInTime",
@@ -320,12 +319,12 @@ export const handleCheckIn = onValueCreated(
       const sessionStartTime = new Date(sessionStartTimeISO);
 
       // Add buffer threshold of 10 minutes
-      const threshold = 10 * 60 * 1000; // 10 minutes in milliseconds
+      const threshold = 5 * 60 * 1000; // 5 minutes in milliseconds
       const bufferTime = new Date(sessionStartTime.getTime() + threshold);
 
       logger.info(
         `Session start time: ${sessionStartTime.toISOString()}, ` +
-        `Buffer time (10 min): ${bufferTime.toISOString()}`
+        `Buffer time (5 min): ${bufferTime.toISOString()}`
       );
 
       // Compare check-in time with the buffered session start time
