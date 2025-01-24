@@ -24,6 +24,8 @@ export default function Index() {
                         router.replace("/(tabs)/home");
                     } else if (userData.role === "organizer") {
                         router.replace("/organizer/home");
+                    } else if (userData.role === "student") {
+                        router.replace("/student/home");
                     } else {
                         router.replace('/(auth)/sign-in'); // Default redirect if no role
                     }
