@@ -79,7 +79,6 @@ const HomeScreen: React.FC = () => {
   const { colors } = useTheme();
   const [fabOpen, setFabOpen] = React.useState(false);
   const [events, setEvents] = useState<EventItemProps[]>([]);
-  const [attendanceData, setAttendanceData] = useState<Record<string, any>>({});
   const [totalAttendancePercentage, setTotalAttendancePercentage] = useState(0);
   const [totalPresent, setTotalPresent] = useState(0);
   const [totalAbsent, setTotalAbsent] = useState(0);
@@ -105,14 +104,13 @@ const HomeScreen: React.FC = () => {
         if (snapshot.exists()) {
             setProfilePicture(snapshot.val());
         } else {
-            setProfilePicture(null); // No profile picture uploaded
+            setProfilePicture(null);
         }
     };
 
   const fetchAttendanceData = async () => {
     const db = getDatabase();
 
-    // Fetch attendance data
     const attendanceRef = ref(db, 'attendance');
     const attendanceSnapshot = await get(attendanceRef);
 
@@ -204,77 +202,6 @@ const HomeScreen: React.FC = () => {
     { title: 'Total Absent', value: `${totalAbsent}`, color: colors.error, icon: 'account-remove' },
     { title: 'Active Events', value: `${activeEventCount}`, color: colors.tertiary, icon: 'calendar-check' },
   ];
-
-  // const calculateAttendanceStats = (sessionId: string, eventId: string) => {
-  //   const sessionAttendance = attendanceData?.[eventId]?.[sessionId];
-  //   if (!sessionAttendance) {
-  //     return { percentage: 0, present: 0, absent: 0, totalPercentage: 0, statuses: { present: 0, absent: 0 } };
-  //   }
-  
-  //   const totalStudents = Object.keys(sessionAttendance).length;
-  //   let presentCount = 0;
-  //   let absentCount = 0;
-  //   let totalAttendancePercentage = 0;
-  //   let statuses = { present: 0, absent: 0 };
-  
-  //   for (const studentId in sessionAttendance) {
-  //     const record = sessionAttendance[studentId];
-  //     if (record.actualStatus === 'present') {
-  //       statuses.present++;
-  //       presentCount++;
-  //     } else if (record.actualStatus === 'absent') {
-  //       statuses.absent++;
-  //       absentCount++;
-  //     }
-  //     if (record.attendancePercentage !== undefined) {
-  //       totalAttendancePercentage += record.attendancePercentage;
-  //     }
-  //   }
-  
-  //   const averageAttendancePercentage =
-  //     totalStudents > 0 ? totalAttendancePercentage / totalStudents : 0;
-  
-  //   const percentage = totalStudents > 0 ? Math.round((presentCount / totalStudents) * 100) : 0;
-  
-  //   return {
-  //     percentage,
-  //     present: presentCount,
-  //     absent: absentCount,
-  //     totalPercentage: averageAttendancePercentage.toFixed(0),
-  //     statuses,
-  //   };
-  // };
-
-  // useEffect(() => {
-  //   const fetchActiveSessions = async () => {
-  //     const db = getDatabase();
-  //     const activeSessionsRef = ref(db, 'activeSessions');
-  //     const snapshot = await get(activeSessionsRef);
-
-  //     if (snapshot.exists()) {
-  //       const activeSessionsData = snapshot.val();
-  //       const fetchedEvents: EventItemProps[] = [];
-
-  //       for (const sessionId in activeSessionsData) {
-  //         const sessionGroup = activeSessionsData[sessionId];
-  //         for (const individualSessionId in sessionGroup) {
-  //           const session: ActiveSession = sessionGroup[individualSessionId];
-  //           const { eventName, sessionDetails } = session;
-
-  //           fetchedEvents.push({
-  //             course: eventName,
-  //             day: sessionDetails.day,
-  //             time: `${new Date(sessionDetails.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - ${new Date(sessionDetails.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
-  //           });
-  //         }
-  //       }
-
-  //       setEvents(fetchedEvents);
-  //     }
-  //   };
-
-  //   fetchActiveSessions();
-  // }, []);
 
   return (
     <Provider>

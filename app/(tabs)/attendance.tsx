@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { ScrollView, View, Dimensions, RefreshControl } from 'react-native';
 import { Href, router } from 'expo-router';
-import { Appbar, Button, Card, Menu, Text, useTheme, FAB, Portal, Dialog, Paragraph, ActivityIndicator, Chip, IconButton } from 'react-native-paper';
+import { Appbar, Button, Card, Text, useTheme, Portal, Dialog, Paragraph, ActivityIndicator, Chip, IconButton } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { get, getDatabase, ref } from 'firebase/database';
 import AttendanceGraph from '@/components/AttendanceGraph';
@@ -127,9 +127,6 @@ const AttendanceScreen = () => {
         setLoading(false);
       }
     }, []);
-
-
-
 
   useEffect(() => {
     fetchData();

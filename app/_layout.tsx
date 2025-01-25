@@ -34,8 +34,8 @@ export default function RootLayout() {
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
         <StatusBar
           backgroundColor="transparent"
-          barStyle={isDarkMode ? 'light-content' : 'dark-content'} // Adjust text contrast
-          translucent={true} // Make the status bar transparent
+          barStyle={isDarkMode ? 'light-content' : 'dark-content'}
+          translucent={true}
         />
         <Stack>
           <Stack.Screen name="index" options={{ headerShown: false }} />
