@@ -5,17 +5,15 @@ import { Card, Divider, List, useTheme, Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { db } from '../../firebaseConfig';
 
-interface Teacher {
+interface Organizer {
   id: string;
   name: string;
-  staffId: string;
 }
 
-const TeacherItem: React.FC<{ teacher: Teacher }> = ({ teacher }) => (
+const OrganizerItem: React.FC<{ organizer: Organizer }> = ({ organizer }) => (
   <>
     <List.Item
-      title={teacher.name}
-      right={() => <Text style={styles.staffId}>{teacher.staffId}</Text>}
+      title={organizer.name}
       style={styles.listItem}
     />
     <Divider />
@@ -24,19 +22,20 @@ const TeacherItem: React.FC<{ teacher: Teacher }> = ({ teacher }) => (
 
 export default function AllTeachers() {
   const { colors } = useTheme();
-  const [organizers, setOrganizers] = useState<Teacher[]>([]);
+  const [organizers, setOrganizers] = useState<Organizer[]>([]);
 
   useEffect(() => {
-    const organizersRef = ref(db, 'organizers');
+    const usersRef = ref(db, 'users');
 
-    const unsubscribe = onValue(organizersRef, (snapshot) => {
+    const unsubscribe = onValue(usersRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
-        const loadedOrganizers = Object.entries(data).map(([id, organizer]: [string, any]) => ({
-          id,
-          name: `${organizer.firstName} ${organizer.lastName}`,
-          staffId: organizer.code || 'N/A',
-        }));
+        const loadedOrganizers = Object.entries(data)
+          .filter(([_, user]: [string, any]) => user.role === "organizer")
+          .map(([id, user]: [string, any]) => ({
+            id,
+            name: user.name || "Unknown Organizer",
+          }));
         setOrganizers(loadedOrganizers);
       }
     });
@@ -52,7 +51,7 @@ export default function AllTeachers() {
           <Card.Content style={[styles.innerCard, { backgroundColor: colors.elevation.level2 }]}>
             <FlatList
               data={organizers}
-              renderItem={({ item }) => <TeacherItem teacher={item} />}
+              renderItem={({ item }) => <OrganizerItem organizer={item} />}
               keyExtractor={(item) => item.id}
               ListEmptyComponent={<Text style={styles.emptyText}>No organizers found.</Text>}
               scrollEnabled={false}

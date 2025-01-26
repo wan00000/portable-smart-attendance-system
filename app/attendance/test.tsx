@@ -242,66 +242,67 @@ export default function Test() {
         </Card>
       </ScrollView>
 
-      <View style={styles.buttonContainer}>
-                <Button
-                    mode="contained"
-                    style={styles.button}
-                    onPress={() => {
-                      router.push({
-                        pathname: '/attendance/edit',
-                        params: {
-                          eventId,
-                          eventName,
-                          sessionId,
-                          sessionDay,
-                          sessionDate,
-                          sessionTime,
-                        },
-                      });
-                    }}
-                >
-                    Edit
-                </Button>
-                <Button
-                    mode="outlined"
-                    style={styles.button}
-                    onPress={() => setModalVisible(true)}
-                >
-                    Export
-                </Button>
-            </View>
+      {/* <View style={styles.buttonContainer}>
+        <Button
+            mode="contained"
+            style={styles.button}
+            onPress={() => {
+              router.push({
+                pathname: '/attendance/edit',
+                params: {
+                  eventId,
+                  eventName,
+                  sessionId,
+                  sessionDay,
+                  sessionDate,
+                  sessionTime,
+                },
+              });
+            }}
+          >
+              Edit
+          </Button>
+          <Button
+              mode="outlined"
+              style={styles.button}
+              // onPress={() => setModalVisible(true)}
+              onPress={() => {router.push('/attendance/export')}}
+          >
+              Export
+          </Button>
+      </View> */}
 
-            <Modal
-                animationType="slide"
-                transparent={true}
-                visible={modalVisible}
-                statusBarTranslucent={true}
-                onRequestClose={() => {
-                setModalVisible(false);
-                }}
-            >
-                <TouchableOpacity
-                    style={styles.modalOverlay}
-                    activeOpacity={1}
-                    onPressOut={() => setModalVisible(false)}
-                >
-                    <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
-                        <Text style={styles.modalTitle}>Export</Text>
-                        <Text style={styles.modalText}>Are you sure you want to export?</Text>
-                        <View style={styles.modalActions}>
-                        <Button onPress={() => setModalVisible(false)}>
-                            Cancel
-                        </Button>
-                        <Button onPress={() => {
-                            // Implement export functionality
-                            setModalVisible(false);
-                        }}>
-                            Export
-                        </Button>
-                        </View>
-                    </View>
-                </TouchableOpacity>
-            </Modal>
+      <Modal
+          animationType="slide"
+          transparent={true}
+          visible={modalVisible}
+          statusBarTranslucent={true}
+          onRequestClose={() => {
+          setModalVisible(false);
+          }}
+      >
+          <TouchableOpacity
+              style={styles.modalOverlay}
+              activeOpacity={1}
+              onPressOut={() => setModalVisible(false)}
+          >
+              <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
+                  <Text style={styles.modalTitle}>Export</Text>
+                  <Text style={styles.modalText}>Are you sure you want to export?</Text>
+                  <View style={styles.modalActions}>
+                  <Button onPress={() => setModalVisible(false)}>
+                      Cancel
+                  </Button>
+                  <Button onPress={() => {
+                      // Implement export functionality
+                      setModalVisible(false);
+                  }}>
+                      Export
+                  </Button>
+                  </View>
+              </View>
+          </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }

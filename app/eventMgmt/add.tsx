@@ -1,10 +1,11 @@
 import { router } from 'expo-router';
 import React, { useState, useEffect } from 'react';
 import { SafeAreaView, ScrollView, View, StyleSheet, Alert } from 'react-native';
-import { Appbar, Button, Card, Menu, TextInput, useTheme, List, Divider, IconButton } from 'react-native-paper';
+import { Appbar, Button, Card, TextInput, useTheme, List, Divider, IconButton } from 'react-native-paper';
 import { TimePickerModal } from 'react-native-paper-dates';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { getDatabase, ref, onValue, push, set } from 'firebase/database';
+import { getAuth } from 'firebase/auth';
 
 type EventInfo = {
   name: string;
@@ -68,7 +69,6 @@ const OrganizerSelector: React.FC<{
   );
 };
 
-
 const ScheduleList: React.FC<{ sessions: Session[]; onRemove: (index: number) => void }> = ({
   sessions,
   onRemove,
@@ -118,18 +118,37 @@ const AddEvent: React.FC = () => {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [timePickerVisible, setTimePickerVisible] = useState(false);
   const [timePickerMode, setTimePickerMode] = useState<'start' | 'end'>('start');
+  const [isOrganizer, setIsOrganizer] = useState(false);
+  const [dayAccordionExpanded, setDayAccordionExpanded] = useState(false);
+
 
   useEffect(() => {
     const db = getDatabase();
-    const organizersRef = ref(db, 'organizers');
+    const auth = getAuth();
+    const userId = auth.currentUser?.uid;
 
-    const unsubscribe = onValue(organizersRef, (snapshot) => {
+    if (userId) {
+      const userRef = ref(db, `users/${userId}`);
+      onValue(userRef, (snapshot) => {
+        const data = snapshot.val();
+        if (data.role === 'organizer') {
+          setIsOrganizer(true);
+          handleInputChange('organizer', data.name);
+          handleInputChange('organizerId', userId);
+        }
+      });
+    }
+
+    const usersRef = ref(db, 'users');
+    const unsubscribe = onValue(usersRef, (snapshot) => {
       const data = snapshot.val();
       const organizerList = data
-        ? Object.entries(data).map(([id, { firstName, lastName }]: any) => ({
-            id,
-            name: `${firstName} ${lastName}`,
-          }))
+        ? Object.entries(data)
+            .filter(([_, user]: any) => user.role === 'organizer')
+            .map(([id, { name }]: any) => ({
+              id,
+              name,
+            }))
         : [];
       setAvailableOrganizers(organizerList);
     });
@@ -239,6 +258,7 @@ const AddEvent: React.FC = () => {
         name: eventInfo.name,
         code: eventInfo.code,
         organizer: eventInfo.organizer,
+        organizerId: eventInfo.organizerId,
         sessions: sessionData,
       };
   
@@ -278,22 +298,33 @@ const AddEvent: React.FC = () => {
                 left={<TextInput.Icon icon={field.icon} />}
               />
             ))}
-            <OrganizerSelector
-              organizer={eventInfo.organizer}
-              availableOrganizers={availableOrganizers}
-              onSelect={(id, name) => {
-                handleInputChange("organizerId", id);
-                handleInputChange("organizer", name);
-              }}
-            />
-              <Button
+            {!isOrganizer ? (
+              <OrganizerSelector
+                organizer={eventInfo.organizer}
+                availableOrganizers={availableOrganizers}
+                onSelect={(id, name) => {
+                  handleInputChange("organizerId", id);
+                  handleInputChange("organizer", name);
+                }}
+              />
+            ) : (
+              <TextInput
+                label="Organizer"
+                value={eventInfo.organizer}
+                mode="outlined"
+                style={styles.input}
+                disabled
+                left={<TextInput.Icon icon="account" />}
+              />
+            )}
+            {/* <Button
               mode="text"
               onPress={() => router.push("/organizerMgmt/add")}
               icon="account-plus"
               style={styles.registerButton}
             >
               Register New Organizer
-            </Button>
+            </Button> */}
           </Card.Content>
         </Card>
 
@@ -303,14 +334,24 @@ const AddEvent: React.FC = () => {
             left={(props) => <MaterialCommunityIcons name="clock-outline" size={24} color={colors.primary} />}
           />
           <Card.Content>
-            <TextInput
-              label="Day"
-              value={eventInfo.day}
-              onChangeText={(text) => handleInputChange("day", text)}
-              mode="outlined"
-              style={styles.input}
-              left={<TextInput.Icon icon="calendar" />}
-            />
+          <List.Accordion
+            title={eventInfo.day || "Select Day"}
+            expanded={dayAccordionExpanded}
+            onPress={() => setDayAccordionExpanded(!dayAccordionExpanded)}
+            left={(props) => <List.Icon {...props} icon="calendar" />}
+            style={{ backgroundColor: colors.backdrop }}
+          >
+            {["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"].map((day) => (
+              <List.Item
+                key={day}
+                title={day}
+                onPress={() => {
+                  handleInputChange("day", day);
+                  setDayAccordionExpanded(false);
+                }}
+              />
+            ))}
+          </List.Accordion>
             <View style={styles.timeContainer}>
               <Button
                 onPress={() => openTimePicker('start')}

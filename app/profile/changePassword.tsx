@@ -64,7 +64,7 @@ const ChangePasswordScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <>
       <Appbar.Header>
         <Appbar.BackAction onPress={() => router.back()} />
         <Appbar.Content title="Change Password" />
@@ -134,7 +134,7 @@ const ChangePasswordScreen: React.FC = () => {
           </Card.Content>
         </Card>
       </ScrollView>
-    </SafeAreaView>
+    </>
   );
 };
 
