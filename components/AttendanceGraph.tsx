@@ -46,11 +46,16 @@ const AttendanceGraph: React.FC = () => {
       if (snapshot.exists()) {
         const data: AttendanceData = snapshot.val();
         console.log("Raw Attendance Data:", JSON.stringify(data, null, 2));
-        setGraphData({
-          percentage: processAttendanceData(data),
-          present: processAttendanceData(data),
-          absent: processAttendanceData(data),
-        });
+        const processedData = processAttendanceData(data);
+        if (isDataSufficient(processedData)) {
+          setGraphData({
+            percentage: processedData,
+            present: processedData,
+            absent: processedData,
+          });
+        } else {
+          console.warn("Insufficient attendance data for calculations.");
+        }
       } else {
         console.warn("No attendance data found in Firebase.");
       }
@@ -58,6 +63,11 @@ const AttendanceGraph: React.FC = () => {
 
     fetchAttendanceData();
   }, []);
+
+  const isDataSufficient = (data: ProcessedData) => {
+    // Check if there is sufficient data for calculations
+    return data.eventCounts.some(count => count > 0);
+  };
 
   const renderGraphTypeButton = (type: GraphType) => (
     <Button
