@@ -10,7 +10,7 @@ import {
   Alert,
   RefreshControl,
 } from 'react-native';
-import { router, useRouter } from 'expo-router';
+import { router, useRouter, useLocalSearchParams  } from 'expo-router';
 import {
   Appbar,
   Button,
@@ -25,9 +25,10 @@ import {
   DataTable,
 } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useRoute } from '@react-navigation/native';
+import { NavigationContainer, useRoute } from '@react-navigation/native';
 import { db } from '../../firebaseConfig';
 import { ref, onValue, update, remove, getDatabase, get } from 'firebase/database';
+import EnrollStudentModal from '@/components/EnrollStudentModal';
 
 interface Student {
   id: string;
@@ -245,6 +246,7 @@ const Details: React.FC = () => {
   }, []);
 
   return (
+      
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <Appbar.Header>
         <Appbar.BackAction onPress={handleBackAction} />
@@ -257,7 +259,7 @@ const Details: React.FC = () => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-          />
+            />
         }
       >
         <Card style={styles.card}>
@@ -294,42 +296,48 @@ const Details: React.FC = () => {
           </Card.Content>
         </Card>
 
-        <Modal
+        {/* <Modal
           visible={modalVisible}
           animationType="slide"
           transparent
           onRequestClose={() => setModalVisible(false)}
-        >
+          >
           <View style={styles.modalOverlay}>
-            <Surface style={[styles.modalContent, { backgroundColor: colors.surface }]}>
-              <Text style={[styles.modalTitle, { color: colors.onSurface }]}>
+          <Surface style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.modalTitle, { color: colors.onSurface }]}>
                 Select Student to Enroll
-              </Text>
+                </Text>
               <FlatList
-                data={nonEnrolledStudents}
-                keyExtractor={(item) => item.id}
-                renderItem={({ item }) => (
+              data={nonEnrolledStudents}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
                   <TouchableOpacity
-                    style={{ paddingVertical: 10 }}
-                    onPress={() => handleStudentSelection(item.id)}
+                  style={{ paddingVertical: 10 }}
+                  onPress={() => handleStudentSelection(item.id)}
                   >
-                    <Text>
+                  <Text>
                       {item.name} ({item.matric})
                     </Text>
                   </TouchableOpacity>
-                )}
-              />
+                  )}
+                  />
               <Button
-                mode="text"
-                onPress={() => setModalVisible(false)}
-                style={styles.cancelButton}
+              mode="text"
+              onPress={() => setModalVisible(false)}
+              style={styles.cancelButton}
               >
-                Cancel
+              Cancel
               </Button>
-            </Surface>
-          </View>
-        </Modal>
+              </Surface>
+              </View>
+              </Modal> */}
       </ScrollView>
+      <EnrollStudentModal
+        visible={modalVisible}
+        onClose={() => setModalVisible(false)}
+        onSelectStudent={handleStudentSelection}
+        nonEnrolledStudents={nonEnrolledStudents}
+        />
 
       <Button 
         mode="contained" 
@@ -337,7 +345,7 @@ const Details: React.FC = () => {
         onPress={() => removeEventFromFirebase(eventId)}
         buttonColor={colors.error}
         textColor={colors.background}
-      >
+        >
         Remove Event
       </Button>
 

@@ -6,6 +6,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { ActivityIndicator } from 'react-native-paper';
+import { NavigationContainer } from '@react-navigation/native';
 
 export default function Index() {
     const [loading, setLoading] = useState(true);  
@@ -44,6 +45,8 @@ export default function Index() {
 
     if (loading) {
         return (
+
+
             <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
                 <ActivityIndicator size="large" color="#0000ff" />
             </View>

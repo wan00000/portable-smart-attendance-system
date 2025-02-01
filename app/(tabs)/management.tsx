@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import AllStudents from '@/app/list/allStudents';
 import AllOrganizers from '@/app/list/allOrganizers';
 import AllEvents from '@/app/list/allEvents';
+// import { NavigationContainer } from '@react-navigation/native';
 
 const Tab = createMaterialTopTabNavigator();
 
@@ -66,24 +67,26 @@ const ManageScreen: React.FC = () => {
   const { colors } = useTheme();
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
-      <Appbar.Header>
-        <Appbar.Content title="Management" />
-      </Appbar.Header>
-      <Tab.Navigator
-        tabBar={(props) => <TabBar {...props} />}
-        style={{ backgroundColor: colors.background }}
-      >
-        {tabScreens.map((screen) => (
-          <Tab.Screen
+    // <NavigationContainer>
+      <SafeAreaView style={styles.container} edges={['bottom']}>
+        <Appbar.Header>
+          <Appbar.Content title="Management" />
+        </Appbar.Header>
+        <Tab.Navigator
+          tabBar={(props) => <TabBar {...props} />}
+          style={{ backgroundColor: colors.background }}
+        >
+          {tabScreens.map((screen) => (
+            <Tab.Screen
             key={screen.title}
             name={screen.title}
             component={screen.component}
             options={{ tabBarLabel: screen.title }}
-          />
-        ))}
-      </Tab.Navigator>
-    </SafeAreaView>
+            />
+          ))}
+        </Tab.Navigator>
+      </SafeAreaView>
+    // </NavigationContainer>
   );
 };
 

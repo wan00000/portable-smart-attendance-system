@@ -5,8 +5,11 @@ import { Appbar, Avatar, Card, Divider, List, useTheme, TextInput, Text } from '
 import { router } from 'expo-router';
 import { auth } from '@/firebaseConfig';
 import { deleteUser, EmailAuthProvider, onAuthStateChanged, reauthenticateWithCredential, signOut } from 'firebase/auth';
-import { get, getDatabase, ref, remove } from 'firebase/database';
+import { get, getDatabase, ref, remove, set } from 'firebase/database';
 import { getStorage, ref as storageRef, getDownloadURL } from 'firebase/storage';
+import ChangePasswordModal from '../profile/changePassword';
+import DeleteAccountModal from '../profile/deleteAccountModal';
+import ExportModal from '../attendance/export';
 
 interface ProfileOption {
   title: string;
@@ -15,41 +18,41 @@ interface ProfileOption {
 }
 
 
-const DeleteAccountModal = ({ visible, onClose, onConfirm }: { 
-  visible: boolean; 
-  onClose: () => void; 
-  onConfirm: (password: string) => void; 
-}) => {
-  const [password, setPassword] = useState("");
-  const { colors } = useTheme();
+// const DeleteAccountModal = ({ visible, onClose, onConfirm }: { 
+//   visible: boolean; 
+//   onClose: () => void; 
+//   onConfirm: (password: string) => void; 
+// }) => {
+//   const [password, setPassword] = useState("");
+//   const { colors } = useTheme();
 
-  return (
-    <Modal visible={visible} transparent={true} animationType="slide">
-      <View style={styles.modalOverlay}>
-        <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
-          <Text style={styles.modalTitle}>Confirm Account Deletion</Text>
-          <Text style={styles.modalMessage}>Please enter your password to confirm:</Text>
-          <TextInput
-            secureTextEntry
-            mode='outlined'
-            placeholder="Enter password"
-            value={password}
-            onChangeText={setPassword}
-            style={styles.textInput}
-          />
-          <View style={styles.buttonContainer}>
-            <TouchableOpacity onPress={onClose} style={[styles.button, styles.cancelButton, { backgroundColor: colors.surface }]}>
-              <Text style={[styles.buttonText, { color: colors.primary }]}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => onConfirm(password)} style={[styles.button, styles.confirmButton, { backgroundColor: colors.error }]}>
-              <Text style={styles.buttonText}>Confirm</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-    </Modal>
-  );
-};
+//   return (
+//     <Modal visible={visible} transparent={true} animationType="slide">
+//       <View style={styles.modalOverlay}>
+//         <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+//           <Text style={styles.modalTitle}>Confirm Account Deletion</Text>
+//           <Text style={styles.modalMessage}>Please enter your password to confirm:</Text>
+//           <TextInput
+//             secureTextEntry
+//             mode='outlined'
+//             placeholder="Enter password"
+//             value={password}
+//             onChangeText={setPassword}
+//             style={styles.textInput}
+//           />
+//           <View style={styles.buttonContainer}>
+//             <TouchableOpacity onPress={onClose} style={[styles.button, styles.cancelButton, { backgroundColor: colors.surface }]}>
+//               <Text style={[styles.buttonText, { color: colors.primary }]}>Cancel</Text>
+//             </TouchableOpacity>
+//             <TouchableOpacity onPress={() => onConfirm(password)} style={[styles.button, styles.confirmButton, { backgroundColor: colors.error }]}>
+//               <Text style={styles.buttonText}>Confirm</Text>
+//             </TouchableOpacity>
+//           </View>
+//         </View>
+//       </View>
+//     </Modal>
+//   );
+// };
 
 const ProfileScreen: React.FC = () => {
   const { colors } = useTheme();
@@ -59,7 +62,8 @@ const ProfileScreen: React.FC = () => {
   const [userName, setUserName] = useState<string | null>(null);
   const [profilePicture, setProfilePicture] = useState<string | null>(null);
   const [isModalVisible, setModalVisible] = useState(false);
-
+  const [isChangePasswordModalVisible, setChangePasswordModalVisible] = useState(false);
+  const [isExportModalVisible, setIsExportModalVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   // Assume user is already authenticated, fetch UID
@@ -184,8 +188,8 @@ const ProfileScreen: React.FC = () => {
 
   const profileOptions: ProfileOption[] = [
     { title: "Profile Information", icon: "account-circle", onPress: () => router.push("/profile/update") },
-    { title: "Export Data", icon: "export", onPress: () => router.push("/attendance/export") },
-    { title: "Change Password", icon: "lock-reset", onPress: () => router.push("/profile/changePassword") },
+    { title: "Export Data", icon: "export", onPress: () => setIsExportModalVisible(true) },
+    { title: "Change Password", icon: "lock-reset", onPress: () => setChangePasswordModalVisible(true), },
     { title: "Delete Account", icon: "account-remove", onPress: () => setModalVisible(true) },
     { title: "Logout", icon: "logout", onPress: handleSignOut },
   ];
@@ -267,6 +271,15 @@ const ProfileScreen: React.FC = () => {
           setModalVisible(false);
           handleDeleteAccount(password);
         }}
+      />
+      <ChangePasswordModal
+        visible={isChangePasswordModalVisible}
+        onClose={() => setChangePasswordModalVisible(false)} // Add this line
+        onDismiss={() => setChangePasswordModalVisible(false)}
+      />
+      <ExportModal 
+        visible={isExportModalVisible} 
+        onClose={() => setIsExportModalVisible(false)} 
       />
     </SafeAreaView>
   );

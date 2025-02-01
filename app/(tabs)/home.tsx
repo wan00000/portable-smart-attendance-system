@@ -25,6 +25,7 @@ interface ActiveSession {
 }
 
 const StatCard: React.FC<StatCardProps> = ({ title, value, color, icon }) => {
+  const progress = parseFloat(value) / 100;
   return (
     <Link href="/attendance" asChild>
     <Card
@@ -38,7 +39,7 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, color, icon }) => {
           <Text style={styles.statTitle}>{title}</Text>
         </View>
       </View>
-      <ProgressBar progress={parseInt(value) / 100} color={color} style={styles.progressBar} />
+      <ProgressBar progress={progress} color={color} style={styles.progressBar} />
     </Card>
     </Link>
   );

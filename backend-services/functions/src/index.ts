@@ -674,26 +674,30 @@ export const emailCheckIn = onValueCreated(
       const studentEmail = `${studentData.matric}@upm.edu.my`;
       const subject = "Check-In Verification";
       const content = `
-        Dear ${studentData.firstName},
-
-        You have successfully checked in for the following event:
-
-        Event Name: ${eventData.name}
-        Event Code: ${eventData.code}
-        Session Details: ${sessionData.day},
-        ${formattedStartTime} - ${formattedEndTime}
-        Check-In Time: ${formattedCheckInTime}
-
-        Best regards,
-        iDATANG Team
-      `;
+      <html>
+        <body
+        style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+          <h2>Check-In Verification</h2>
+          <p>Dear ${studentData.firstName},</p>
+          <p>You have successfully checked in for the following event:</p>
+          <ul style="list-style-type: none; padding-left: 0;">
+            <li><strong>Event Name:</strong> ${eventData.name}</li>
+            <li><strong>Event Code:</strong> ${eventData.code}</li>
+            <li><strong>Session Details:</strong> ${sessionData.day}, 
+            ${formattedStartTime} - ${formattedEndTime}</li>
+            <li><strong>Check-In Time:</strong> ${formattedCheckInTime}</li>
+          </ul>
+          <p>Best regards,<br>iDATANG Team</p>
+        </body>
+      </html>
+    `;
 
       // Send email
       const emailOptions = {
         from: "a9uf@gmail.com",
         to: studentEmail,
         subject: subject,
-        text: content,
+        html: content,
       };
 
       await transporter.sendMail(emailOptions);
@@ -816,33 +820,39 @@ export const emailCheckOut = onValueCreated(
       const studentEmail = `${studentData.matric}@upm.edu.my`;
       const subject = "Check-Out Verification";
       const content = `
-        Dear ${studentData.firstName},
-
-        You have successfully checked out for the following event:
-
-        Event Name: ${eventData.name}
-        Event Code: ${eventData.code}
-        Session Details: ${sessionData.day},
-        ${formattedStartTime} - ${formattedEndTime}
-        Check-In Time: ${formattedCheckInTime}
-        Check-Out Time: ${formattedCheckOutTime}
-        Attendance Percentage: ${formattedAttendancePercentage}
-        Status: ${actualStatus}
-
-        Best regards,
-        iDATANG Team
-      `;
+      <html>
+        <body
+        style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+          <h2>Check-Out Verification</h2>
+          <p>Dear ${studentData.firstName},</p>
+          <p>You have successfully checked out for the following event:</p>
+          <ul style="list-style-type: none; padding-left: 0;">
+            <li><strong>Event Name:</strong> ${eventData.name}</li>
+            <li><strong>Event Code:</strong> ${eventData.code}</li>
+            <li><strong>Session Details:</strong> ${sessionData.day}, 
+            ${formattedStartTime} - ${formattedEndTime}</li>
+            <li><strong>Check-In Time:</strong> ${formattedCheckInTime}</li>
+            <li><strong>Check-Out Time:</strong> ${formattedCheckOutTime}</li>
+            <li><strong>Attendance Percentage:</strong>
+            ${formattedAttendancePercentage}
+            </li>
+            <li><strong>Status:</strong> ${actualStatus}</li>
+          </ul>
+          <p>Best regards,<br>iDATANG Team</p>
+        </body>
+      </html>
+    `;
 
       // Send email
       const emailOptions = {
         from: "a9uf@gmail.com",
         to: studentEmail,
         subject: subject,
-        text: content,
+        html: content,
       };
 
       await transporter.sendMail(emailOptions);
-      console.log("Check-in email sent successfully to:", studentEmail);
+      console.log("Check-out email sent successfully to:", studentEmail);
     } catch (error) {
       console.error("Error sending email:", error);
     }
