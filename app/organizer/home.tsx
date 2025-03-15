@@ -1,46 +1,47 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { View, SafeAreaView, ScrollView, StyleSheet, RefreshControl, Image, TouchableOpacity } from 'react-native';
-import { Appbar, Card, useTheme, Text, Button, Avatar, Portal, FAB, Provider } from 'react-native-paper';
-import { router } from 'expo-router';
-import { ref, onValue, off, getDatabase, get } from 'firebase/database';
-import { auth, db } from '../../firebaseConfig';
+import React, { useCallback, useEffect, useState } from "react"
+import { ScrollView, StyleSheet, RefreshControl, Image, TouchableOpacity, View } from "react-native"
+import { Appbar, Card, useTheme, Text, Button, Avatar, Portal, FAB, Provider } from "react-native-paper"
+import { router } from "expo-router"
+import { ref, onValue, off, getDatabase, get } from "firebase/database"
+import { auth, db } from "../../firebaseConfig"
+import NoEventView from "../../components/NoEventView"
 
 interface Session {
-  date: string;
-  day: string;
-  startTime: string;
-  endTime: string;
+  date: string
+  day: string
+  startTime: string
+  endTime: string
 }
 
 interface CourseProps {
-  id: string;
-  title: string;
-  code: string;
-  organizer: string;
-  sessions: Session[];
+  id: string
+  title: string
+  code: string
+  organizer: string
+  sessions: Session[]
 }
 
 // Utility function for date parsing and formatting
 const formatDateTime = (isoDate: string): { day: string; date: string; time: string } => {
-  const date = new Date(isoDate);
+  const date = new Date(isoDate)
 
   // Format the day and time
-  const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  const day = dayNames[date.getDay()];
-  const dateFormatted = date.toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
-  const timeFormatted = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+  const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+  const day = dayNames[date.getDay()]
+  const dateFormatted = date.toLocaleDateString("en-US", { year: "numeric", month: "2-digit", day: "2-digit" })
+  const timeFormatted = date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })
 
-  return { day, date: dateFormatted, time: timeFormatted };
-};
+  return { day, date: dateFormatted, time: timeFormatted }
+}
 
 // CourseCard component
 const CourseCard: React.FC<CourseProps> = ({ id, title, code, sessions, organizer }) => {
-  const { colors } = useTheme();
+  const { colors } = useTheme()
 
   const handleSessionDetails = (session: any) => {
-    console.log(session);
+    console.log(session)
     router.push({
-      pathname: '/attendance/test',
+      pathname: "/attendance/test",
       params: {
         eventId: id,
         eventName: title,
@@ -49,12 +50,12 @@ const CourseCard: React.FC<CourseProps> = ({ id, title, code, sessions, organize
         sessionDate: session.date,
         sessionTime: `${session.startTime} - ${session.endTime}`,
       },
-    });
-  };
-  
+    })
+  }
+
   const handleMoreDetails = () => {
     router.push({
-      pathname: '/eventMgmt/detail',
+      pathname: "/eventMgmt/detail",
       params: {
         course: title,
         code,
@@ -62,9 +63,9 @@ const CourseCard: React.FC<CourseProps> = ({ id, title, code, sessions, organize
         organizer,
         sessions: JSON.stringify(sessions),
       },
-    });
-    console.log(JSON.stringify(sessions));
-  };
+    })
+    console.log(JSON.stringify(sessions))
+  }
 
   return (
     <Card style={styles.courseCard}>
@@ -78,13 +79,11 @@ const CourseCard: React.FC<CourseProps> = ({ id, title, code, sessions, organize
         <Card.Title title="Sessions" titleVariant="titleMedium" />
         <Card.Content>
           {sessions.map((session, index) => (
-            <TouchableOpacity
-            key={index}
-            style={styles.sessionRow}
-            onPress={() => handleSessionDetails(session)}
-            >
+            <TouchableOpacity key={index} style={styles.sessionRow} onPress={() => handleSessionDetails(session)}>
               <Text>{session.day}</Text>
-              <Text>{session.startTime} - {session.endTime}</Text>
+              <Text>
+                {session.startTime} - {session.endTime}
+              </Text>
             </TouchableOpacity>
           ))}
         </Card.Content>
@@ -93,52 +92,52 @@ const CourseCard: React.FC<CourseProps> = ({ id, title, code, sessions, organize
         </Card.Actions>
       </Card>
     </Card>
-  );
-};
+  )
+}
 
 // AllEvents component
 const AllEvents: React.FC = () => {
-  const { colors } = useTheme();
-  const [courses, setCourses] = useState<CourseProps[]>([]);
-  const [refreshing, setRefreshing] = useState(false);
-  const [profilePicture, setProfilePicture] = useState<string | null>(null);
-  const [fabOpen, setFabOpen] = React.useState(false);
+  const { colors } = useTheme()
+  const [courses, setCourses] = useState<CourseProps[]>([])
+  const [refreshing, setRefreshing] = useState(false)
+  const [profilePicture, setProfilePicture] = useState<string | null>(null)
+  const [fabOpen, setFabOpen] = React.useState(false)
 
-  const userAuth = auth.currentUser;
-  const uid = userAuth?.uid;
+  const userAuth = auth.currentUser
+  const uid = userAuth?.uid
 
   useEffect(() => {
-      if (uid) {
-          fetchProfilePicture(uid);
-      }
-  }, [uid]);
+    if (uid) {
+      fetchProfilePicture(uid)
+    }
+  }, [uid])
 
   // Function to fetch the profile picture URL from Firebase RLDB
   const fetchProfilePicture = async (uid: string) => {
-      const db = getDatabase();
-      const userRef = ref(db, `users/${uid}/profilePicture`);
-      const snapshot = await get(userRef);
-      if (snapshot.exists()) {
-          setProfilePicture(snapshot.val());
-      } else {
-          setProfilePicture(null); // No profile picture uploaded
-      }
-  };
-  
-  const fetchCourses = useCallback(() => {
-    const userAuth = auth.currentUser; // Get the logged-in user
-    const userId = userAuth?.uid;
-  
-    if (!userId) {
-      console.error("User is not logged in.");
-      setCourses([]); // Clear courses if no user is logged in
-      return;
+    const db = getDatabase()
+    const userRef = ref(db, `users/${uid}/profilePicture`)
+    const snapshot = await get(userRef)
+    if (snapshot.exists()) {
+      setProfilePicture(snapshot.val())
+    } else {
+      setProfilePicture(null) // No profile picture uploaded
     }
-  
-    const eventsRef = ref(db, 'events');
-  
+  }
+
+  const fetchCourses = useCallback(() => {
+    const userAuth = auth.currentUser // Get the logged-in user
+    const userId = userAuth?.uid
+
+    if (!userId) {
+      console.error("User is not logged in.")
+      setCourses([]) // Clear courses if no user is logged in
+      return
+    }
+
+    const eventsRef = ref(db, "events")
+
     onValue(eventsRef, (snapshot) => {
-      const data = snapshot.val();
+      const data = snapshot.val()
       if (data) {
         const loadedCourses = Object.entries(data)
           .filter(([id, event]: [string, any]) => event.organizerId === userId) // Filter events for the logged-in user
@@ -148,94 +147,81 @@ const AllEvents: React.FC = () => {
             code: event.code,
             organizer: event.organizer,
             sessions: Object.entries(event.sessions || {}).map(([sessionId, session]: [string, any]) => {
-              const { day, date, time: startTime } = formatDateTime(session.startTime);
-              const { time: endTime } = formatDateTime(session.endTime);
-  
+              const { day, date, time: startTime } = formatDateTime(session.startTime)
+              const { time: endTime } = formatDateTime(session.endTime)
+
               return {
                 sessionId,
                 day,
                 date,
                 startTime,
                 endTime,
-              };
+              }
             }),
-          }));
-        setCourses(loadedCourses);
+          }))
+        setCourses(loadedCourses)
       } else {
-        setCourses([]); // No data found
+        setCourses([]) // No data found
       }
-    });
-  
-    return () => off(eventsRef);
-  }, []);
-  
+    })
+
+    return () => off(eventsRef)
+  }, [])
 
   useEffect(() => {
-    fetchCourses();
-  }, [fetchCourses]);
+    fetchCourses()
+  }, [fetchCourses])
 
   const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    fetchCourses();
-    setRefreshing(false);
-  }, [fetchCourses]);
+    setRefreshing(true)
+    fetchCourses()
+    setRefreshing(false)
+  }, [fetchCourses])
 
   return (
-    <Provider >
-      <ScrollView 
-      style={{ flex: 1 }}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={[colors.primary]}
+    <Provider>
+      <ScrollView
+        style={{ flex: 1 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />}
+      >
+        <Appbar.Header style={styles.header}>
+          <Image source={require("@/assets/images/idatangPutih.png")} style={styles.logo} resizeMode="contain" />
+          <Appbar.Content titleStyle={styles.headerTitle} title="iDATANG" />
+          <Avatar.Image
+            size={40}
+            source={profilePicture ? { uri: profilePicture } : require("@/assets/images/avatar.png")}
+            style={styles.avatar}
           />
-        }
-      >
-      <Appbar.Header style={styles.header}>
-        <Image
-          source={require('@/assets/images/idatangPutih.png')}
-          style={styles.logo}
-          resizeMode="contain"
-        />
-        <Appbar.Content 
-          titleStyle={styles.headerTitle}
-          title="iDATANG" 
-        />
-        <Avatar.Image 
-        size={40} 
-        source={profilePicture ? { uri: profilePicture } : require("@/assets/images/avatar.png")}
-        style={styles.avatar}
-        />
-      </Appbar.Header>
-      <ScrollView 
-      contentContainerStyle={styles.scrollContent}
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={onRefresh}
-          colors={[colors.primary]}
-        />
-      }
-      >
-        {courses.map((course) => (
-          <CourseCard key={course.id} {...course} />
-        ))}
-      </ScrollView>
-      <Portal>
+        </Appbar.Header>
+        <View style={{ flex: 1 }}>
+          {courses.length > 0 ? (
+            <ScrollView
+              contentContainerStyle={styles.scrollContent}
+              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />}
+            >
+              {courses.map((course) => <CourseCard key={course.id} {...course} />)}
+            </ScrollView>
+          ) : (
+            <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+              <NoEventView />
+            </View>
+          )}
+        </View>
+
+        <Portal>
           <FAB.Group
             open={fabOpen}
             visible
-            icon={fabOpen ? 'close' : 'plus'}
+            icon={fabOpen ? "close" : "plus"}
             actions={[
               {
-                icon: 'account-plus',
-                label: 'Add Student',
+                icon: "account-plus",
+                label: "Add Student",
                 onPress: () => router.push("/studentMgmt/add"),
               },
               {
-                icon: 'book-plus',
-                label: 'Add Event',
+                icon: "book-plus",
+                label: "Add Event",
                 onPress: () => router.push("/eventMgmt/add"),
               },
             ]}
@@ -249,8 +235,8 @@ const AllEvents: React.FC = () => {
         </Portal>
       </ScrollView>
     </Provider>
-  );
-};
+  )
+}
 
 // Styles
 const styles = StyleSheet.create({
@@ -267,15 +253,15 @@ const styles = StyleSheet.create({
     margin: 5,
   },
   sessionRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     marginBottom: 10,
   },
   header: {
     elevation: 4,
   },
   headerTitle: {
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   logo: {
     width: 30,
@@ -286,6 +272,10 @@ const styles = StyleSheet.create({
   avatar: {
     marginRight: 12,
   },
-});
+  fullHeight: {
+    flexGrow: 1,
+  },
+})
 
-export default AllEvents;
+export default AllEvents
+

@@ -234,6 +234,7 @@ const AddEvent: React.FC = () => {
   };
 
   const pushToFirebase = async () => {
+
     const db = getDatabase();
     const eventsRef = ref(db, "events");
   

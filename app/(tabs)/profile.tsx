@@ -17,43 +17,6 @@ interface ProfileOption {
   onPress: () => void;
 }
 
-
-// const DeleteAccountModal = ({ visible, onClose, onConfirm }: { 
-//   visible: boolean; 
-//   onClose: () => void; 
-//   onConfirm: (password: string) => void; 
-// }) => {
-//   const [password, setPassword] = useState("");
-//   const { colors } = useTheme();
-
-//   return (
-//     <Modal visible={visible} transparent={true} animationType="slide">
-//       <View style={styles.modalOverlay}>
-//         <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
-//           <Text style={styles.modalTitle}>Confirm Account Deletion</Text>
-//           <Text style={styles.modalMessage}>Please enter your password to confirm:</Text>
-//           <TextInput
-//             secureTextEntry
-//             mode='outlined'
-//             placeholder="Enter password"
-//             value={password}
-//             onChangeText={setPassword}
-//             style={styles.textInput}
-//           />
-//           <View style={styles.buttonContainer}>
-//             <TouchableOpacity onPress={onClose} style={[styles.button, styles.cancelButton, { backgroundColor: colors.surface }]}>
-//               <Text style={[styles.buttonText, { color: colors.primary }]}>Cancel</Text>
-//             </TouchableOpacity>
-//             <TouchableOpacity onPress={() => onConfirm(password)} style={[styles.button, styles.confirmButton, { backgroundColor: colors.error }]}>
-//               <Text style={styles.buttonText}>Confirm</Text>
-//             </TouchableOpacity>
-//           </View>
-//         </View>
-//       </View>
-//     </Modal>
-//   );
-// };
-
 const ProfileScreen: React.FC = () => {
   const { colors } = useTheme();
   const [user, setUser] = useState<any>(null);
@@ -188,6 +151,7 @@ const ProfileScreen: React.FC = () => {
 
   const profileOptions: ProfileOption[] = [
     { title: "Profile Information", icon: "account-circle", onPress: () => router.push("/profile/update") },
+    // { title: "Manage Users", icon: "account-circle", onPress: () => router.push("/profile/manageUsers") },
     { title: "Export Data", icon: "export", onPress: () => setIsExportModalVisible(true) },
     { title: "Change Password", icon: "lock-reset", onPress: () => setChangePasswordModalVisible(true), },
     { title: "Delete Account", icon: "account-remove", onPress: () => setModalVisible(true) },

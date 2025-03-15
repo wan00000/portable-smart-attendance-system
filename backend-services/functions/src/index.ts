@@ -441,6 +441,7 @@ export const handleCheckOut = onValueCreated(
 
       if (attendancePercentage < 70) {
         updates.status = "absent";
+        updates.attendancePercentage = 0;
       }
 
       await attendanceRef.update(updates);
@@ -540,6 +541,7 @@ export const aggregateEventAttendance = onSchedule(
                     checkOutTime: null,
                     status: "absent",
                     actualStatus: "absent",
+                    attendancePercentage: 0,
                   });
                   logger.info(
                     `Marked student ${studentId} as absent for event ${eventId},

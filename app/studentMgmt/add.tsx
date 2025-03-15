@@ -31,7 +31,7 @@ const inputFields: InputField[] = [
   { label: "Last Name", value: "lastName", icon: "account" },
   { label: "Matric No", value: "matric", icon: "identifier" },
   { label: "Card No", value: "card", icon: "card-account-details" },
-  { label: "Address", value: "address", icon: "home" },
+  { label: "District, State", value: "address", icon: "home" },
   { label: "Gender", value: "gender", icon: "gender-male-female" },
   { label: "Phone Number", value: "phone", icon: "phone" },
 ];
@@ -40,16 +40,22 @@ const FormInput: React.FC<{
   field: InputField;
   value: string;
   onChangeText: (text: string) => void;
-}> = ({ field, value, onChangeText }) => (
-  <TextInput 
-    label={field.label}
-    value={value}
-    onChangeText={onChangeText}
-    mode='outlined'
-    style={styles.input}
-    left={<TextInput.Icon icon={field.icon} />}
-  />
-);
+}> = ({ field, value, onChangeText }) => {
+  const isNumericField = ["matric", "phone"].includes(field.value);
+
+  return (
+    <TextInput 
+      label={field.label}
+      value={value}
+      onChangeText={onChangeText}
+      mode='outlined'
+      style={styles.input}
+      keyboardType={isNumericField ? "numeric" : "default"} // Numeric keyboard for specified fields
+      left={<TextInput.Icon icon={field.icon} />}
+    />
+  );
+};
+
 
 const SelectCourseMenu: React.FC<{
   course: string;
@@ -120,6 +126,22 @@ const Add: React.FC = () => {
   };
 
   const handleRegisterStudent = async () => {
+    // Check for missing fields
+    const missingFields = Object.entries(formData)
+    .filter(([key, value]) => {
+      // Exclude 'course' from the required fields if it's optional
+      if (key === 'course') return false;
+      return !value;
+    })
+    .map(([key]) => key);
+
+    if (missingFields.length > 0) {
+      Alert.alert(
+        "Missing Information",
+        `Please fill in the following fields: ${missingFields.join(', ')}`
+      );
+      return;
+    }
     const db = getDatabase();
     const studentId = push(ref(db, "students")).key;
 

@@ -25,13 +25,10 @@ interface ActiveSession {
 }
 
 const StatCard: React.FC<StatCardProps> = ({ title, value, color, icon }) => {
-  const progress = parseFloat(value) / 100;
+  
   return (
     <Link href="/attendance" asChild>
-    <Card
-      style={styles.statCard}
-      // onPress={() => router.replace('/attendance')}
-    >
+    <Card style={styles.statCard}>
       <View style={styles.statCardContent}>
         <MaterialCommunityIcons name={icon} size={36} color={color} />
         <View style={styles.statTextContainer}>
@@ -39,7 +36,7 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, color, icon }) => {
           <Text style={styles.statTitle}>{title}</Text>
         </View>
       </View>
-      <ProgressBar progress={progress} color={color} style={styles.progressBar} />
+      <ProgressBar progress={parseFloat(value) / 100}  color={color} style={styles.progressBar} />
     </Card>
     </Link>
   );
@@ -217,7 +214,7 @@ const HomeScreen: React.FC = () => {
             titleStyle={styles.headerTitle}
             title="iDATANG" 
           />
-          <Avatar.Image 
+          <Avatar.Image
           size={40} 
           source={profilePicture ? { uri: profilePicture } : require("@/assets/images/avatar.png")}
           style={styles.avatar}

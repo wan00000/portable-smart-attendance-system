@@ -1,21 +1,22 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { View, StyleSheet, Dimensions } from 'react-native';
-import { Card, Text, Button, useTheme } from 'react-native-paper';
-import { Svg, Line, Circle, Text as SvgText } from 'react-native-svg';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { getDatabase, ref, get, query, orderByKey, limitToLast } from 'firebase/database';
-import { GraphType, AttendanceData, ProcessedData } from './types';
-import { processAttendanceData } from './processAttendanceData';
+import React, { useState, useMemo, useEffect } from "react"
+import { View, StyleSheet, Dimensions } from "react-native"
+import { Card, Text, Button, useTheme } from "react-native-paper"
+import { Svg, Line, Circle, Text as SvgText } from "react-native-svg"
+import { MaterialCommunityIcons } from "@expo/vector-icons"
+import { getDatabase, ref, get, query, orderByKey, limitToLast } from "firebase/database"
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from "react-native-reanimated"
+import type { GraphType, AttendanceData, ProcessedData } from "./types"
+import { processAttendanceData } from "./processAttendanceData"
 
-const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const CHART_WIDTH = Dimensions.get('window').width - 64;
-const CHART_HEIGHT = 220;
-const CHART_PADDING = 20;
+const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+const CHART_WIDTH = Dimensions.get("window").width - 64
+const CHART_HEIGHT = 220
+const CHART_PADDING = 20
 
 const AttendanceGraph: React.FC = () => {
-  const { colors } = useTheme();
-  const [selectedGraph, setSelectedGraph] = useState<GraphType>('percentage');
-  const [graphData, setGraphData] = useState<{[key in GraphType]: ProcessedData}>({
+  const { colors } = useTheme()
+  const [selectedGraph, setSelectedGraph] = useState<GraphType>("percentage")
+  const [graphData, setGraphData] = useState<{ [key in GraphType]: ProcessedData }>({
     percentage: {
       percentage: Array(7).fill(0),
       present: Array(7).fill(0),
@@ -34,70 +35,81 @@ const AttendanceGraph: React.FC = () => {
       absent: Array(7).fill(0),
       eventCounts: Array(7).fill(0),
     },
-  });
+  })
+
+  // Animation related
+  const animationProgress = useSharedValue(1)
 
   useEffect(() => {
     const fetchAttendanceData = async () => {
-      const db = getDatabase();
-      const attendanceRef = ref(db, 'attendance');
-      const lastWeekQuery = query(attendanceRef, orderByKey(), limitToLast(7));
+      const db = getDatabase()
+      const attendanceRef = ref(db, "attendance")
+      const lastWeekQuery = query(attendanceRef, orderByKey(), limitToLast(7))
 
-      const snapshot = await get(lastWeekQuery);
+      const snapshot = await get(lastWeekQuery)
       if (snapshot.exists()) {
-        const data: AttendanceData = snapshot.val();
-        console.log("Raw Attendance Data:", JSON.stringify(data, null, 2));
-        const processedData = processAttendanceData(data);
+        const data: AttendanceData = snapshot.val()
+        console.log("Raw Attendance Data:", JSON.stringify(data, null, 2))
+        const processedData = processAttendanceData(data)
         if (isDataSufficient(processedData)) {
           setGraphData({
             percentage: processedData,
             present: processedData,
             absent: processedData,
-          });
+          })
         } else {
-          console.warn("Insufficient attendance data for calculations.");
+          console.warn("Insufficient attendance data for calculations.")
         }
       } else {
-        console.warn("No attendance data found in Firebase.");
+        console.warn("No attendance data found in Firebase.")
       }
-    };
+    }
 
-    fetchAttendanceData();
-  }, []);
+    fetchAttendanceData()
+  }, [])
 
   const isDataSufficient = (data: ProcessedData) => {
-    // Check if there is sufficient data for calculations
-    return data.eventCounts.some(count => count > 0);
-  };
+    return data.eventCounts.some((count) => count > 0)
+  }
+
+  const handleGraphChange = (newGraph: GraphType) => {
+    animationProgress.value = 0
+    setSelectedGraph(newGraph)
+    animationProgress.value = withTiming(1, {
+      duration: 500,
+      easing: Easing.inOut(Easing.cubic),
+    })
+  }
 
   const renderGraphTypeButton = (type: GraphType) => (
     <Button
       key={type}
-      mode={selectedGraph === type ? 'contained' : 'outlined'}
-      onPress={() => setSelectedGraph(type)}
-      icon={type === 'percentage' ? 'percent' : type === 'present' ? 'account-check' : 'account-remove'}
+      mode={selectedGraph === type ? "contained" : "outlined"}
+      onPress={() => handleGraphChange(type)}
+      icon={type === "percentage" ? "percent" : type === "present" ? "account-check" : "account-remove"}
       style={styles.button}
       labelStyle={styles.buttonLabel}
     >
       {type.charAt(0).toUpperCase() + type.slice(1)}
     </Button>
-  );
+  )
 
   const chartData = useMemo(() => {
-    const data = graphData[selectedGraph][selectedGraph];
-    const maxValue = Math.max(...data);
-    const minValue = Math.min(...data);
-    const range = maxValue > minValue ? maxValue - minValue : 1;
+    const data = graphData[selectedGraph][selectedGraph]
+    const maxValue = Math.max(...data)
+    const minValue = Math.min(...data)
+    const range = maxValue > minValue ? maxValue - minValue : 1
 
     return data.map((value, index) => ({
-      x: (CHART_WIDTH - CHART_PADDING * 2) / (DAYS.length - 1) * index + CHART_PADDING,
+      x: ((CHART_WIDTH - CHART_PADDING * 2) / (DAYS.length - 1)) * index + CHART_PADDING,
       y: CHART_HEIGHT - CHART_PADDING - ((value - minValue) / range) * (CHART_HEIGHT - CHART_PADDING * 2),
       value,
       hasEvent: graphData[selectedGraph].eventCounts[index] > 0,
-    }));
-  }, [graphData, selectedGraph]);
+    }))
+  }, [graphData, selectedGraph])
 
   const renderChart = () => {
-    const validPoints = chartData.filter(point => point.hasEvent);
+    const validPoints = chartData.filter((point) => point.hasEvent)
     return (
       <Svg width={CHART_WIDTH} height={CHART_HEIGHT}>
         <Line
@@ -136,14 +148,8 @@ const AttendanceGraph: React.FC = () => {
               stroke={colors.primary}
               strokeWidth="2"
             />
-            <SvgText
-              x={point.x}
-              y={point.y - 10}
-              fontSize="10"
-              fill={colors.onSurface}
-              textAnchor="middle"
-            >
-              {selectedGraph === 'percentage' ? `${point.value.toFixed(1)}%` : point.value}
+            <SvgText x={point.x} y={point.y - 10} fontSize="10" fill={colors.onSurface} textAnchor="middle">
+              {selectedGraph === "percentage" ? `${point.value.toFixed(1)}%` : point.value}
             </SvgText>
           </React.Fragment>
         ))}
@@ -160,14 +166,25 @@ const AttendanceGraph: React.FC = () => {
           </SvgText>
         ))}
       </Svg>
-    );
-  };
+    )
+  }
 
   const calculateWeeklyAverage = () => {
-    const data = graphData[selectedGraph][selectedGraph];
-    const nonZeroValues = data.filter((v, i) => graphData[selectedGraph].eventCounts[i] > 0);
-    return nonZeroValues.length > 0 ? nonZeroValues.reduce((a, b) => a + b, 0) / nonZeroValues.length : 0;
-  };
+    const data = graphData[selectedGraph][selectedGraph]
+    const nonZeroValues = data.filter((v, i) => graphData[selectedGraph].eventCounts[i] > 0)
+    return nonZeroValues.length > 0 ? nonZeroValues.reduce((a, b) => a + b, 0) / nonZeroValues.length : 0
+  }
+
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: animationProgress.value,
+      transform: [
+        {
+          scale: animationProgress.value * 0.2 + 0.8,
+        },
+      ],
+    }
+  })
 
   return (
     <Card style={styles.card}>
@@ -177,30 +194,29 @@ const AttendanceGraph: React.FC = () => {
       />
       <Card.Content>
         <View style={styles.buttonContainer}>
-          {['percentage', 'present', 'absent'].map((type) =>
-            renderGraphTypeButton(type as GraphType)
-          )}
+          {["percentage", "present", "absent"].map((type) => renderGraphTypeButton(type as GraphType))}
         </View>
-        <Text style={styles.graphTitle}>
-          {selectedGraph.charAt(0).toUpperCase() + selectedGraph.slice(1)} Trends
-        </Text>
-        {renderChart()}
-        <Text style={styles.averageText}>
-          Weekly Average: {calculateWeeklyAverage().toFixed(2)}
-          {selectedGraph === 'percentage' ? '%' : ''}
-        </Text>
+        <Animated.View style={animatedStyle}>
+          <Text style={styles.graphTitle}>{selectedGraph.charAt(0).toUpperCase() + selectedGraph.slice(1)} Trends</Text>
+          {renderChart()}
+          <Text style={styles.averageText}>
+            Weekly Average: {calculateWeeklyAverage().toFixed(2)}
+            {selectedGraph === "percentage" ? "%" : ""}
+          </Text>
+        </Animated.View>
       </Card.Content>
     </Card>
-  );
-};
+  )
+}
 
 const styles = StyleSheet.create({
   card: { margin: 16, elevation: 4 },
-  buttonContainer: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 },
+  buttonContainer: { flexDirection: "row", justifyContent: "space-between", marginBottom: 16 },
   button: { flex: 1, marginHorizontal: 4 },
   buttonLabel: { fontSize: 12 },
-  graphTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 8, textAlign: 'center' },
-  averageText: { fontSize: 14, fontStyle: 'italic', textAlign: 'center', marginTop: 8 },
-});
+  graphTitle: { fontSize: 18, fontWeight: "bold", marginBottom: 8, textAlign: "center" },
+  averageText: { fontSize: 14, fontStyle: "italic", textAlign: "center", marginTop: 8 },
+})
 
-export default AttendanceGraph;
+export default AttendanceGraph
+
